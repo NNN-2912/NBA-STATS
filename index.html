@@ -127,6 +127,12 @@ tbody tr:hover td { filter: brightness(0.97); }
 .games li.me { border-color: var(--star); }
 .games .t { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .games .lead { font-weight: 700; color: var(--good); }
+.wkstats { overflow-x: auto; margin: 0 -4px; padding: 0 4px; }
+.wkstats table { font-size: 12px; min-width: 560px; }
+.wkstats th, .wkstats td { padding: 4px 5px; text-align: right; white-space: nowrap; }
+.wkstats th:first-child, .wkstats td:first-child { text-align: left; max-width: 120px; overflow: hidden; text-overflow: ellipsis; position: sticky; left: 0; background: var(--surface); }
+.wkstats tr.me td { font-weight: 700; }
+.wkstats td.top { color: var(--good); font-weight: 700; }
 .score { font: 700 26px/1 var(--font-display); margin: 6px 0 2px; }
 .addrow { display: flex; gap: 6px; margin-top: 10px; }
 .addrow input { flex: 1; min-width: 0; font: 500 14px/1.2 var(--font-body); color: var(--ink); background: var(--surface); border: 1px solid var(--line); border-radius: 6px; padding: 6px 8px; min-height: 34px; }
@@ -248,6 +254,7 @@ details.help p, details.help li { font-size: 13.5px; color: var(--muted); max-wi
       </label>
       <div id="leaguecontent"></div>
       <div id="standings"></div>
+      <div id="weekstats"></div>
     </section>
   </aside>
 </main>
@@ -606,6 +613,36 @@ details.help p, details.help li { font-size: 13.5px; color: var(--muted); max-wi
       <p class="hint">Category wins and losses from ESPN.</p>`;
   }
 
+  // Every team's category totals for one week, so the whole league can be compared, not just your matchup.
+  function renderWeekStats() {
+    const S = window.STANDINGS;
+    const weeks = (S && S.weeks || []).filter((w) => w.matchups.some((m) => Object.keys(m.home.stats || {}).length));
+    if (!weeks.length) { $("weekstats").innerHTML = ""; return; }
+    // Default to the last finished week once a new one has started.
+    if (!weeks.some((w) => w.week === state.statWeek)) {
+      const done = weeks.filter((w) => w.week < S.week);
+      state.statWeek = (done.length ? done : weeks)[(done.length ? done : weeks).length - 1].week;
+    }
+    const wk = weeks.find((w) => w.week === state.statWeek);
+    const sides = wk.matchups.flatMap((m) => [m.home, m.away]).sort((a, b) => b.wins - a.wins || a.losses - b.losses);
+    const labels = [...new Set(sides.flatMap((t) => Object.keys(t.stats || {})))];
+    const lowerWins = new Set(["TO"]);
+    const best = Object.fromEntries(labels.map((l) => {
+      const v = sides.map((t) => t.stats[l]).filter((x) => typeof x === "number");
+      return [l, lowerWins.has(l) ? Math.min(...v) : Math.max(...v)];
+    }));
+    const fmt = (l, v) => v == null ? "" : l.endsWith("%") ? v.toFixed(3).replace(/^0/, "") : l === "A/TO" ? v.toFixed(2) : String(Math.round(v * 10) / 10);
+    const rec = (x) => `${x.wins}–${x.losses}${x.ties ? "–" + x.ties : ""}`;
+    const rows = sides.map((t) => `<tr class="${t.mine ? "me" : ""}"><td title="${esc(t.name)}">${esc(t.name)}</td><td>${rec(t)}</td>${labels.map((l) =>
+      `<td class="${t.stats[l] === best[l] ? "top" : ""}">${fmt(l, t.stats[l])}</td>`).join("")}</tr>`).join("");
+    const opts = weeks.map((w) => `<option value="${w.week}"${w.week === wk.week ? " selected" : ""}>Week ${w.week}${w.week === S.week ? " (live)" : ""}</option>`).join("");
+    $("weekstats").innerHTML = `<h3>League stats by week</h3>
+      <label class="field" for="statweek">Week <select id="statweek">${opts}</select></label>
+      <div class="wkstats"><table><thead><tr><th>Team</th><th>W–L</th>${labels.map((l) => `<th>${esc(l)}</th>`).join("")}</tr></thead><tbody>${rows}</tbody></table></div>
+      <p class="hint">Each team's category totals for the week, from ESPN. Green is the league's best that week.</p>`;
+    $("statweek").onchange = (e) => { state.statWeek = Number(e.target.value); renderWeekStats(); };
+  }
+
   function renderLeague() {
     const teams = leagueTeams();
     const sel = $("opp");
@@ -613,6 +650,7 @@ details.help p, details.help li { font-size: 13.5px; color: var(--muted); max-wi
     if (!teams.includes(state.opp)) state.opp = teams[0];
     renderLive();
     renderStandings();
+    renderWeekStats();
     const opts = teams.map((t) => `<option${t === state.opp ? " selected" : ""}>${esc(t)}</option>`).join("");
     if (sel.innerHTML !== opts) sel.innerHTML = opts;
     sel.value = state.opp;
