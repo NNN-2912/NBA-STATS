@@ -11,7 +11,7 @@
 /* One page, top to bottom: your team, every team's category table, this week's matchups. */
 :root {
   --bg: #f3f5f9; --surface: #ffffff; --surface-2: #eaeef5; --ink: #121a2b; --muted: #5a6478; --line: #d9dfe9;
-  --accent: #1f4fd1; --accent-ink: #ffffff; --good: #109a4c; --bad: #d8382c; --star: #e09b00; --me: #fff4d6; --win-g: #d7f0c8; --win-p: #e6dcff; --g-ink: #1f7a1f; --p-ink: #6b3fd4;
+  --accent: #1f4fd1; --accent-ink: #ffffff; --good: #109a4c; --bad: #d8382c; --star: #e09b00; --me: #fff4d6; --win-g: #d7f0c8; --win-p: #fbd5d1; --g-ink: #1f7a1f; --p-ink: #c0352a;
   --font-display: "Barlow Condensed", "Arial Narrow", system-ui, sans-serif;
   --font-body: "Barlow", system-ui, -apple-system, "Segoe UI", sans-serif;
   --font-data: "Barlow Semi Condensed", "Barlow", system-ui, sans-serif;
@@ -19,13 +19,13 @@
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
     --bg: #0c111b; --surface: #141b29; --surface-2: #1b2435; --ink: #e6ebf4; --muted: #95a1b7; --line: #283246;
-    --accent: #7aa2ff; --accent-ink: #0c111b; --good: #34d07f; --bad: #ff6a5c; --star: #ffc23d; --me: #2c2614; --win-g: #1f4a2c; --win-p: #3a2a66; --g-ink: #5fdc8a; --p-ink: #b79bff;
+    --accent: #7aa2ff; --accent-ink: #0c111b; --good: #34d07f; --bad: #ff6a5c; --star: #ffc23d; --me: #2c2614; --win-g: #1f4a2c; --win-p: #5a2422; --g-ink: #5fdc8a; --p-ink: #ff7a6e;
     color-scheme: dark;
   }
 }
 :root[data-theme="dark"] {
   --bg: #0c111b; --surface: #141b29; --surface-2: #1b2435; --ink: #e6ebf4; --muted: #95a1b7; --line: #283246;
-  --accent: #7aa2ff; --accent-ink: #0c111b; --good: #34d07f; --bad: #ff6a5c; --star: #ffc23d; --me: #2c2614; --win-g: #1f4a2c; --win-p: #3a2a66; --g-ink: #5fdc8a; --p-ink: #b79bff;
+  --accent: #7aa2ff; --accent-ink: #0c111b; --good: #34d07f; --bad: #ff6a5c; --star: #ffc23d; --me: #2c2614; --win-g: #1f4a2c; --win-p: #5a2422; --g-ink: #5fdc8a; --p-ink: #ff7a6e;
   color-scheme: dark;
 }
 * { box-sizing: border-box; }
@@ -294,7 +294,7 @@ footer a { color: var(--muted); }
   }
 
   // Green for the top of the league, red for the bottom, blank in the middle.
-  // Top 3 in the league green, bottom 3 purple, the rest plain.
+  // Top 3 in the league green, bottom 3 red, the rest plain.
   function shade(rank, count) {
     if (!rank || count < 4) return "";
     if (rank <= 3) return "background: var(--win-g)";
@@ -405,7 +405,7 @@ footer a { color: var(--muted); }
       // Show the other team first and ours second, like ESPN does; otherwise keep ESPN's home/away order.
       const sides = m.home.mine ? [m.away, m.home] : m.away.mine ? [m.home, m.away] : [m.home, m.away];
       const sub = (n) => { const r = rec[n]; return r ? `<small class="rs">${r.wins}-${r.losses}-${r.ties || 0}${r.seed ? ", " + ord(r.seed) : ""}</small>` : ""; };
-      // Top team's wins in purple, bottom team's (yours, in your matchup) in green.
+      // Top team's wins in red, bottom team's (yours, in your matchup) in green.
       const col = (s) => s === sides[0] ? "p" : "g";
       const has = sides.every((s) => s.stats && Object.keys(s.stats).length);
       const row = (s, o) => `<tr class="${s.mine ? "me" : ""}"><td title="${esc(s.name)}">${s.mine ? "★ " : ""}${esc(s.name)}</td>${CATS.map((c) => {
@@ -429,7 +429,7 @@ footer a { color: var(--muted); }
     const playing = new Set(games.flatMap((m) => [m.home.name, m.away.name]));
     const bye = names.filter((n) => !playing.has(n));
     $("boxes").innerHTML = games.map(box).join("") +
-      `<p class="byes">${w.week === S.week ? "Live, updates every hour. " : "Final. "}Shaded cells show who's winning each category: purple for the top team, green for the bottom team (you, in your matchup).${bye.length ? ` Bye: ${esc(bye.join(", "))}.` : ""}${weeks.length ? "" : " Other teams' category numbers appear after the next ESPN sync."}</p>`;
+      `<p class="byes">${w.week === S.week ? "Live, updates every hour. " : "Final. "}Shaded cells show who's winning each category: red for the top team, green for the bottom team (you, in your matchup).${bye.length ? ` Bye: ${esc(bye.join(", "))}.` : ""}${weeks.length ? "" : " Other teams' category numbers appear after the next ESPN sync."}</p>`;
   }
 
   function renderInfo() {
