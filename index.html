@@ -32,7 +32,8 @@
 html, body { background: var(--bg); color: var(--ink); }
 body { margin: 0; font: 15px/1.45 var(--font-body); }
 .wrap { max-width: 1180px; margin: 0 auto; padding: 0 max(16px, env(safe-area-inset-left, 0px)) 48px; }
-header { padding-block: 22px 8px; display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-end; gap: 10px 24px; }
+header { padding-block: 12px 0; display: flex; justify-content: flex-end; }
+header .info { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 6px 10px; text-align: right; }
 h1 { font: 700 clamp(30px, 5vw, 44px)/0.95 var(--font-display); text-transform: uppercase; margin: 0; letter-spacing: 0.01em; }
 h1 span { color: var(--accent); }
 h2 { font: 700 22px/1.1 var(--font-display); text-transform: uppercase; letter-spacing: 0.02em; margin: 0 0 4px; }
@@ -93,40 +94,31 @@ tr.detail td { background: var(--surface-2); white-space: normal; text-align: le
 .swatch { display: inline-block; width: 44px; height: 10px; border-radius: 3px; vertical-align: middle; margin: 0 4px;
   background: linear-gradient(90deg, color-mix(in srgb, var(--good) 45%, transparent), transparent, color-mix(in srgb, var(--bad) 45%, transparent)); }
 
-/* Box scores, laid out like ESPN's */
-.box { border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px 4px; margin-top: 12px; }
-.box.mine { border: 2px solid var(--star); }
-.box .hd { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; font: 700 20px/1.1 var(--font-display); }
-.box .hd .n { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
-.box .hd .sc { white-space: nowrap; font-variant-numeric: tabular-nums; }
-.box .hd .sc { font-size: 32px; }
-.box .hd .sc .g { color: var(--g-ink); } .box .hd .sc .p { color: var(--p-ink); }
-.box table { min-width: 640px; margin-top: 6px; table-layout: fixed; }
-.box th:first-child { width: 26%; }
-.box td, .box th { padding: 7px 6px; }
-.box th { cursor: default; }
-.box td.p, td.p { background: var(--win-p); }
-.box td.g, td.g { background: var(--win-g); }
-.box .wide td:not(:first-child), .box .wide th:not(:first-child) { text-align: right; }
-.box .wide td:first-child { color: var(--muted); }
-.box .wide tr.me td:first-child { color: var(--ink); }
-.box .wide th:nth-child(4), .box .wide td:nth-child(4), .box .wide th:last-child, .box .wide td:last-child, .box .wide th:nth-child(2), .box .wide td:nth-child(2) { border-left: 1px solid var(--line); }
-.box .wide th:last-child, .box .wide td:last-child { text-align: center; }
-.box td.score { font-weight: 700; }
-.box td.score { font-weight: 700; }
-.box tr:last-child td { border-bottom: 0; }
-.box .tablewrap { margin: 0 -12px; padding: 0 12px; }
-.box .boxm { display: none; width: 100%; min-width: 0; table-layout: fixed; margin-top: 6px; }
-.box .boxm th:first-child, .box .boxm td:first-child { position: static; box-shadow: none; width: 22%; }
-.box .boxm th { text-transform: none; letter-spacing: 0; font-size: 13px; white-space: normal; overflow: hidden; text-overflow: ellipsis; }
+/* Box scores: every matchup in one compact table, two rows per matchup, like ESPN's box score. */
+.sechd { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 16px; margin-bottom: 8px; }
+.sechd h2 { margin: 0; }
+table.sb { min-width: 0; width: 100%; table-layout: fixed; font-size: 14px; }
+.sb th, .sb td { padding: 5px 6px; text-align: right; cursor: default; }
+.sb th:first-child, .sb td:first-child { width: 24%; text-align: left; position: static; box-shadow: none; background: transparent; max-width: none; }
+.sb th:last-child, .sb td:last-child { width: 8%; text-align: center; border-left: 1px solid var(--line); }
+.sb td:first-child { color: var(--muted); }
+.sb tr.me td:first-child { color: var(--ink); font-weight: 700; background: transparent; }
+.sb tbody tr:last-child td { border-bottom: 4px solid var(--bg); }
+.sb tbody.mine tr td:first-child { box-shadow: inset 3px 0 0 var(--star); padding-left: 9px; }
+.sb td.score { font-weight: 700; }
+.sb td.p, td.p { background: var(--win-p); }
+.sb td.g, td.g { background: var(--win-g); }
+.sb .sm { display: none; }
 @media (max-width: 640px) {
-  .box .wide { display: none; }
-  .box .boxm { display: table; }
-  .box .hd { flex-wrap: wrap; font-size: 18px; }
-  .box .hd .n { display: none; }
-  .info { text-align: left; }
+  table.sb { font-size: 11.5px; }
+  .sb th, .sb td { padding: 5px 3px 5px 1px; }
+  .sb th { font-size: 10px; letter-spacing: 0; }
+  .sb th:first-child, .sb td:first-child { width: 23%; }
+  .sb th:last-child, .sb td:last-child { width: 12%; }
+  .sb .lg { display: none; } .sb .sm { display: inline; }
+  .sb th.build::before { font-size: 9px; }
+  section.sbsec { padding: 12px 10px; }
 }
-.box .rs { display: block; font: 500 13px/1.3 var(--font-data); color: var(--muted); text-transform: none; letter-spacing: 0; }
 .byes { color: var(--muted); font-size: 13px; margin: 10px 0 0; }
 /* Matchups */
 .games { list-style: none; margin: 8px 0 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 8px; }
@@ -147,16 +139,12 @@ footer a { color: var(--muted); }
 
 <div class="wrap">
   <header>
-    <div>
-      <h1>League <span>Categories</span></h1>
-      <p class="sub">Every matchup this week, then every team side by side in all 9 categories.</p>
-    </div>
     <div class="info" id="info"></div>
   </header>
 
-  <section aria-labelledby="boxtitle">
-    <h2 id="boxtitle">Box scores</h2>
-    <div class="controls">
+  <section class="sbsec" aria-labelledby="boxtitle">
+    <div class="sechd">
+      <h2 id="boxtitle">Box scores</h2>
       <label class="field" for="boxweek">Week <select id="boxweek"></select></label>
     </div>
     <div id="boxes"></div>
@@ -401,41 +389,36 @@ footer a { color: var(--muted); }
     const w = BW.find((x) => x.week === boxState.week) || BW[BW.length - 1];
     const games = [...w.matchups].sort((a, b) => (b.home.mine || b.away.mine) - (a.home.mine || a.away.mine));
     const rec3 = (s) => `${s.wins}-${s.losses}-${s.ties || 0}`;
+    // Percentages as ESPN shows them (.4531), shortened to .453 on phones so every column fits.
+    const cell = (c, v) => {
+      if (v == null || Number.isNaN(v)) return "–";
+      if (isPct(c)) return `<span class="lg">${efmt(c, v)}</span><span class="sm">${v.toFixed(3).replace(/^0/, "")}</span>`;
+      if (c === "A/TO") return `<span class="lg">${efmt(c, v)}</span><span class="sm">${v.toFixed(2)}</span>`;
+      return efmt(c, v);
+    };
     const box = (m) => {
-      // Show the other team first and ours second, like ESPN does; otherwise keep ESPN's home/away order.
-      const sides = m.home.mine ? [m.away, m.home] : m.away.mine ? [m.home, m.away] : [m.home, m.away];
-      const sub = (n) => { const r = rec[n]; return r ? `<small class="rs">${r.wins}-${r.losses}-${r.ties || 0}${r.seed ? ", " + ord(r.seed) : ""}</small>` : ""; };
-      // Top team's wins in red, bottom team's (yours, in your matchup) in green.
+      // Our opponent on top and us underneath, like ESPN; other matchups keep ESPN's home/away order.
+      const sides = m.home.mine ? [m.away, m.home] : [m.home, m.away];
+      // Top team's category wins in red, bottom team's (ours, in our matchup) in green.
       const col = (s) => s === sides[0] ? "p" : "g";
       const has = sides.every((s) => s.stats && Object.keys(s.stats).length);
-      const row = (s, o) => `<tr class="${s.mine ? "me" : ""}"><td title="${esc(s.name)}">${s.mine ? "★ " : ""}${esc(s.name)}</td>${CATS.map((c) => {
+      const row = (s, o) => `<tr class="${s.mine ? "me" : ""}"><td title="${esc(s.name)}">${esc(s.name)}</td>${CATS.map((c) => {
         const x = s.stats?.[c], y = o.stats?.[c];
         const win = typeof x === "number" && typeof y === "number" && x > y;
-        return `<td class="${win ? col(s) : ""}">${has ? efmt(c, x) : "–"}</td>`;
+        return `<td class="${win ? col(s) : ""}">${has ? cell(c, x) : "–"}</td>`;
       }).join("")}<td class="score ${s.wins > o.wins ? col(s) : ""}">${rec3(s)}</td></tr>`;
-      // Phone layout: categories down the side, one column per team.
-      const mrow = (c) => `<tr><td>${BUILD.has(c) ? "★ " : ""}${esc(c)}</td>${sides.map((s, i) => {
-        const x = s.stats?.[c], y = sides[1 - i].stats?.[c];
-        return `<td class="${typeof x === "number" && typeof y === "number" && x > y ? col(s) : ""}">${has ? efmt(c, x) : "–"}</td>`;
-      }).join("")}</tr>`;
-      const mobile = `<table class="boxm"><thead><tr><th></th>${sides.map((s) => `<th>${s.mine ? "★ " : ""}${esc(s.name)}${sub(s.name)}</th>`).join("")}</tr></thead>
-        <tbody>${CATS.map(mrow).join("")}<tr><td>Score</td>${sides.map((s, i) => `<td class="score ${s.wins > sides[1 - i].wins ? col(s) : ""}">${rec3(s)}</td>`).join("")}</tr></tbody></table>`;
-      const lead = (s, o) => `<span class="${s.wins > o.wins ? col(s) : ""}">${rec3(s)}</span>`;
-      return `<div class="box${m.home.mine || m.away.mine ? " mine" : ""}">
-        <div class="hd"><span class="n">${esc(sides[0].name)}${sub(sides[0].name)}</span><span class="sc">${lead(sides[0], sides[1])} &nbsp;·&nbsp; ${lead(sides[1], sides[0])}</span><span class="n" style="text-align:right">${esc(sides[1].name)}${sub(sides[1].name)}</span></div>
-        ${mobile}<div class="tablewrap wide"><table><thead><tr><th>Team</th>${CATS.map((c) => `<th class="${BUILD.has(c) ? "build" : ""}">${esc(c)}</th>`).join("")}<th>Score</th></tr></thead>
-        <tbody>${row(sides[0], sides[1])}${row(sides[1], sides[0])}</tbody></table></div></div>`;
+      return `<tbody class="${m.home.mine || m.away.mine ? "mine" : ""}">${row(sides[0], sides[1])}${row(sides[1], sides[0])}</tbody>`;
     };
     const playing = new Set(games.flatMap((m) => [m.home.name, m.away.name]));
     const bye = names.filter((n) => !playing.has(n));
-    $("boxes").innerHTML = games.map(box).join("") +
-      `<p class="byes">${w.week === S.week ? "Live, updates every hour. " : "Final. "}Shaded cells show who's winning each category: red for the top team, green for the bottom team (you, in your matchup).${bye.length ? ` Bye: ${esc(bye.join(", "))}.` : ""}${weeks.length ? "" : " Other teams' category numbers appear after the next ESPN sync."}</p>`;
+    $("boxes").innerHTML = `<table class="sb"><thead><tr><th>Team</th>${CATS.map((c) => `<th class="${BUILD.has(c) ? "build" : ""}">${esc(c)}</th>`).join("")}<th>Score</th></tr></thead>${games.map(box).join("")}</table>` +
+      `<p class="byes">${w.week === S.week ? "Live, updates every hour. " : "Final. "}Each pair of rows is one matchup, yours first. Red = top team winning the category, green = bottom team (you, in your matchup).${bye.length ? ` Bye: ${esc(bye.join(", "))}.` : ""}${weeks.length ? "" : " Other teams' category numbers appear after the next ESPN sync."}</p>`;
   }
 
   function renderInfo() {
     const when = S.updated || (MU && MU.updated) || P.updated;
     const t = when ? new Date(when).toLocaleString(undefined, { day: "numeric", month: "short", hour: "numeric", minute: "2-digit" }) : "unknown";
-    $("info").innerHTML = `ESPN sync ${esc(t)}<br><button type="button" class="btn" id="theme" style="margin-top:6px"></button> <button type="button" class="btn" id="refresh" style="margin-top:6px">Refresh data</button>`;
+    $("info").innerHTML = `<span>ESPN sync ${esc(t)}</span><button type="button" class="btn" id="theme"></button><button type="button" class="btn" id="refresh">Refresh data</button>`;
     const root = document.documentElement;
     const label = () => { $("theme").textContent = root.dataset.theme === "light" ? "Dark mode" : "Light mode"; };
     label();
