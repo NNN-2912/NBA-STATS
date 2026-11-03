@@ -1,0 +1,842 @@
+<!doctype html>
+<html lang="en">
+<title>9-Cat Fantasy Checker</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=Barlow+Semi+Condensed:wght@400;500;600&family=Barlow:wght@400;500;600&display=swap">
+<style>
+/* Layout: a scoreboard-style sticky control bar, a ranking table on the left and "My Team" category report on the right (stacks on phones). */
+:root {
+  --bg: #f3f5f9;
+  --surface: #ffffff;
+  --surface-2: #eaeef5;
+  --ink: #121a2b;
+  --muted: #5a6478;
+  --line: #d9dfe9;
+  --accent: #1f4fd1;
+  --accent-ink: #ffffff;
+  --good: #109a4c;
+  --bad: #d8382c;
+  --star: #e09b00;
+  --close: #b7860b;
+  --font-display: "Barlow Condensed", "Arial Narrow", system-ui, sans-serif;
+  --font-body: "Barlow", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-data: "Barlow Semi Condensed", "Barlow", system-ui, sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0c111b; --surface: #141b29; --surface-2: #1b2435; --ink: #e6ebf4; --muted: #95a1b7;
+    --line: #283246; --accent: #7aa2ff; --accent-ink: #0c111b; --good: #34d07f; --bad: #ff6a5c; --star: #ffc23d; --close: #f2c94c;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0c111b; --surface: #141b29; --surface-2: #1b2435; --ink: #e6ebf4; --muted: #95a1b7;
+  --line: #283246; --accent: #7aa2ff; --accent-ink: #0c111b; --good: #34d07f; --bad: #ff6a5c; --star: #ffc23d; --close: #f2c94c;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html, body { background: var(--bg); color: var(--ink); }
+body { margin: 0; font: 15px/1.45 var(--font-body); }
+.wrap { max-width: 1920px; margin: 0 auto; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+
+header.top { padding-block: 22px 14px; display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 12px 24px; }
+h1 { font: 700 clamp(30px, 4.4vw, 46px)/0.95 var(--font-display); letter-spacing: 0.01em; margin: 0; text-transform: uppercase; text-wrap: balance; }
+h1 span { color: var(--accent); }
+.sub { color: var(--muted); margin: 6px 0 0; max-width: 62ch; }
+.datainfo { font: 500 13px/1.35 var(--font-data); color: var(--muted); text-align: right; }
+.datainfo b { color: var(--ink); font-weight: 600; }
+.warn { color: var(--bad); }
+.datainfo .refresh { margin-top: 8px; display: flex; gap: 10px; align-items: center; justify-content: flex-end; flex-wrap: wrap; }
+.datainfo .refresh a { color: var(--muted); font-size: 12px; }
+
+.controls { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5; background: var(--bg); border-bottom: 1px solid var(--line); padding-block: 10px; }
+body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 10; background: var(--bg); }
+.row { display: flex; flex-wrap: wrap; gap: 8px 14px; align-items: center; }
+.row + .row { margin-top: 8px; }
+.field { display: flex; align-items: center; gap: 6px; font: 600 12px/1 var(--font-data); text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); }
+select, input[type="search"], input[type="number"] {
+  font: 500 14px/1.2 var(--font-body); color: var(--ink); background: var(--surface);
+  border: 1px solid var(--line); border-radius: 6px; padding: 6px 8px; min-height: 34px;
+}
+input[type="number"] { width: 64px; }
+input[type="search"] { width: min(240px, 100%); }
+.seg { display: inline-flex; border: 1px solid var(--line); border-radius: 6px; overflow: hidden; background: var(--surface); }
+.seg button { font: 600 13px/1 var(--font-data); border: 0; background: transparent; color: var(--muted); padding: 9px 12px; cursor: pointer; }
+.seg button[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); }
+.cats { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip { font: 600 13px/1 var(--font-data); letter-spacing: 0.03em; border: 1px solid var(--line); background: var(--surface); color: var(--ink); border-radius: 999px; padding: 8px 12px; cursor: pointer; }
+.chip[aria-pressed="false"] { color: var(--muted); text-decoration: line-through; background: transparent; border-style: dashed; }
+.btn { font: 600 13px/1 var(--font-data); border: 1px solid var(--line); background: var(--surface); color: var(--ink); border-radius: 6px; padding: 9px 12px; cursor: pointer; }
+.btn.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+button:focus-visible, select:focus-visible, input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.hint { font-size: 12px; color: var(--muted); }
+
+/* Wide: table | my team | league. Medium: my team + league side by side above the table. Phone: one column. */
+main { display: grid; grid-template-columns: minmax(0, 1fr) 340px 340px; grid-template-areas: "table side league"; gap: 20px; padding-block: 16px 40px; align-items: start; }
+.tablebox { grid-area: table; }
+aside.side { grid-area: side; }
+aside.league { grid-area: league; }
+@media (max-width: 1199px) { main { grid-template-columns: repeat(2, minmax(0, 1fr)); grid-template-areas: "side league" "table table"; } }
+@media (max-width: 760px) { main { grid-template-columns: minmax(0, 1fr); grid-template-areas: "side" "league" "table"; } }
+@media (max-width: 700px) { .controls { position: static; } }
+
+.tablebox { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; overflow: auto; max-height: calc(100vh - 150px); min-width: 0; }
+@media (max-width: 1199px) { .tablebox { max-height: 75vh; } }
+table { border-collapse: separate; border-spacing: 0; width: 100%; font: 500 14px/1.2 var(--font-data); font-variant-numeric: tabular-nums; }
+th, td { padding: 7px 8px; text-align: right; white-space: nowrap; border-bottom: 1px solid var(--line); }
+thead th { position: sticky; top: 0; z-index: 2; background: var(--surface-2); font: 700 13px/1 var(--font-display); letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); cursor: pointer; user-select: none; }
+thead th.on { color: var(--ink); }
+thead th.off { opacity: 0.45; }
+th.l, td.l { text-align: left; }
+td.player, th.player { position: sticky; left: 0; background: var(--surface); z-index: 1; min-width: 180px; max-width: 230px; border-right: 1px solid var(--line); }
+thead th.player { z-index: 3; background: var(--surface-2); }
+.pname { font: 600 14.5px/1.15 var(--font-body); overflow: hidden; text-overflow: ellipsis; display: block; }
+.pmeta { font-size: 12px; color: var(--muted); }
+.inj { font: 700 10px/1 var(--font-data); color: var(--bad); border: 1px solid currentColor; border-radius: 3px; padding: 1px 3px; margin-left: 4px; vertical-align: 1px; }
+.rk { color: var(--muted); width: 36px; }
+.star { border: 0; background: none; cursor: pointer; font-size: 18px; line-height: 1; color: color-mix(in srgb, var(--muted) 45%, transparent); padding: 2px 4px; }
+.star[aria-pressed="true"] { color: var(--star); }
+tr.mine td { background-image: linear-gradient(color-mix(in srgb, var(--star) 9%, transparent), color-mix(in srgb, var(--star) 9%, transparent)); }
+td.z { position: relative; }
+td.z small { display: block; font-size: 11px; color: var(--muted); }
+td.off { opacity: 0.4; }
+td.val { font: 700 15px/1 var(--font-display); }
+tbody tr:hover td { filter: brightness(0.97); }
+.owner { color: var(--accent); font-weight: 600; }
+.mu { display: grid; grid-template-columns: 44px repeat(2, minmax(0, 1fr)); gap: 4px 8px; font: 500 13px/1.2 var(--font-data); font-variant-numeric: tabular-nums; align-items: center; }
+.mu .h { font: 700 12px/1.1 var(--font-display); text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mu .cat { font: 700 13px/1 var(--font-display); letter-spacing: 0.04em; }
+.mu .v { text-align: right; padding: 3px 6px; border-radius: 4px; }
+.mu .w { background: color-mix(in srgb, var(--good) 20%, transparent); color: var(--good); font-weight: 700; }
+.mu .c { background: color-mix(in srgb, var(--close) 20%, transparent); color: var(--close); font-weight: 700; }
+.mu .cat.c { background: none; }
+.close-note { color: var(--close); font-weight: 600; }
+.mu .off { opacity: 0.4; }
+.stand { width: 100%; border-collapse: collapse; font: 500 13px/1.2 var(--font-data); font-variant-numeric: tabular-nums; }
+.stand th { font: 700 12px/1.1 var(--font-display); text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); text-align: right; padding: 4px 6px; border-bottom: 1px solid var(--line); }
+.stand td { text-align: right; padding: 5px 6px; border-bottom: 1px solid var(--line); }
+.stand th:nth-child(2), .stand td:nth-child(2) { text-align: left; }
+.stand td:nth-child(2) { max-width: 0; width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.stand tr.me td { background: color-mix(in srgb, var(--star) 12%, transparent); font-weight: 700; }
+.games { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; font: 500 13px/1.2 var(--font-data); font-variant-numeric: tabular-nums; }
+.games li { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 2px 8px; padding: 6px 8px; border: 1px solid var(--line); border-radius: 6px; }
+.games li.me { border-color: var(--star); }
+.games .t { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.games .lead { font-weight: 700; color: var(--good); }
+.score { font: 700 26px/1 var(--font-display); margin: 6px 0 2px; }
+.addrow { display: flex; gap: 6px; margin-top: 10px; }
+.addrow input { flex: 1; min-width: 0; font: 500 14px/1.2 var(--font-body); color: var(--ink); background: var(--surface); border: 1px solid var(--line); border-radius: 6px; padding: 6px 8px; min-height: 34px; }
+.empty { padding: 30px; text-align: center; color: var(--muted); }
+
+aside { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+.panel { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 16px; }
+.panel h2 { font: 700 22px/1 var(--font-display); text-transform: uppercase; letter-spacing: 0.03em; margin: 0 0 4px; }
+.panel h3 { font: 700 15px/1 var(--font-display); text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); margin: 16px 0 8px; }
+.verdict { margin: 8px 0 0; font-size: 14px; }
+.verdict b { font-weight: 600; }
+.bars { display: grid; grid-template-columns: 44px minmax(0, 1fr) 64px 56px; gap: 6px 8px; align-items: center; font: 500 13px/1 var(--font-data); font-variant-numeric: tabular-nums; }
+.bars .cat { font: 700 13px/1 var(--font-display); letter-spacing: 0.04em; }
+.track { position: relative; height: 14px; background: var(--surface-2); border-radius: 3px; }
+.track::after { content: ""; position: absolute; left: 50%; top: -2px; bottom: -2px; width: 1px; background: var(--muted); opacity: 0.6; }
+.fill { position: absolute; top: 0; bottom: 0; border-radius: 3px; }
+.pill { font: 700 11px/1 var(--font-data); text-transform: uppercase; letter-spacing: 0.05em; border-radius: 999px; padding: 4px 7px; text-align: center; }
+.pill.strong { background: color-mix(in srgb, var(--good) 22%, transparent); color: var(--good); }
+.pill.ok { background: var(--surface-2); color: var(--muted); }
+.pill.close { background: color-mix(in srgb, var(--close) 24%, transparent); color: var(--close); }
+.pill.need { background: color-mix(in srgb, var(--bad) 18%, transparent); color: var(--bad); }
+.pill.punt { background: transparent; color: var(--muted); border: 1px dashed var(--line); }
+.zval { text-align: right; }
+.roster, .adds { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; }
+.adds li { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 2px 8px; align-items: center; padding: 6px 0; border-bottom: 1px solid var(--line); font-size: 14px; }
+.adds li > small { grid-column: 1; grid-row: 2; }
+.adds li > .btns { grid-column: 2; grid-row: 1 / span 2; white-space: nowrap; }
+.tk { border: 0; background: none; cursor: pointer; font-size: 12px; line-height: 1; color: color-mix(in srgb, var(--muted) 55%, transparent); padding: 2px 4px; }
+.tk[aria-pressed="true"] { color: var(--bad); }
+tr.taken td:not(:nth-child(2)) { opacity: 0.38; }
+.roster li { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: 8px; align-items: center; padding: 5px 0; border-bottom: 1px solid var(--line); font-size: 14px; }
+.roster li .note { grid-column: 1 / -1; color: var(--muted); }
+.roster li .note b { font-weight: 600; color: var(--ink); }
+.roster li span:first-child, .adds li > span:first-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.adds small, .roster small { color: var(--muted); font-size: 12px; }
+.mini { font: 600 12px/1 var(--font-data); border: 1px solid var(--line); background: var(--surface); color: var(--ink); border-radius: 5px; padding: 5px 8px; cursor: pointer; }
+.legend { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--muted); }
+.legend i { width: 60px; height: 10px; border-radius: 2px; background: linear-gradient(90deg, color-mix(in srgb, var(--bad) 55%, transparent), transparent, color-mix(in srgb, var(--good) 55%, transparent)); }
+details.help summary { cursor: pointer; font-weight: 600; }
+details.help p, details.help li { font-size: 13.5px; color: var(--muted); max-width: 65ch; }
+@media (prefers-reduced-motion: no-preference) { .fill { transition: width .25s ease, left .25s ease; } }
+</style>
+
+<header class="wrap top">
+  <div>
+    <h1>NBA 9-Cat <span>Checker</span></h1>
+    <p class="sub">Player values for your ESPN head-to-head league: FG%, FT%, 3P%, REB, AST, A/TO, STL, BLK, PTS. Star your players to see which categories your team wins and which ones you still need. <a href="./">Back to the league view</a></p>
+  </div>
+  <div class="datainfo" id="datainfo"></div>
+</header>
+
+<div class="controls">
+  <div class="wrap">
+    <div class="row">
+      <label class="field" for="src">Stats
+        <select id="src"></select>
+      </label>
+      <div class="seg" role="group" aria-label="Per game or season totals">
+        <button type="button" id="mode-avg" aria-pressed="true">Per game</button>
+        <button type="button" id="mode-tot" aria-pressed="false">Totals</button>
+      </div>
+      <label class="field" for="teams">Teams <input type="number" id="teams" min="6" max="20" value="10"></label>
+      <label class="field" for="roster">Roster <input type="number" id="roster" min="8" max="20" value="13"></label>
+      <label class="field" for="mingp">Min GP <input type="number" id="mingp" min="0" max="82" value="0"></label>
+    </div>
+    <div class="row">
+      <div class="cats" id="cats" aria-label="Categories (tap to punt)"></div>
+      <span class="hint">Tap a category to punt it.</span>
+    </div>
+    <div class="row">
+      <input type="search" id="q" placeholder="Search player" aria-label="Search player">
+      <select id="pos" aria-label="Position"><option value="">All positions</option><option>PG</option><option>SG</option><option>SF</option><option>PF</option><option>C</option></select>
+      <select id="team" aria-label="NBA team"><option value="">All teams</option></select>
+      <div class="seg" role="group" aria-label="Which players">
+        <button type="button" id="show-all" aria-pressed="true">All players</button>
+        <button type="button" id="show-mine" aria-pressed="false">My team</button>
+        <button type="button" id="show-free" aria-pressed="false">Available</button>
+      </div>
+      <span class="legend"><span>below avg</span><i></i><span>above avg</span></span>
+    </div>
+  </div>
+</div>
+
+<main class="wrap">
+  <div class="tablebox" id="tablebox">
+    <table>
+      <thead><tr id="head"></tr></thead>
+      <tbody id="body"></tbody>
+    </table>
+  </div>
+
+  <aside class="side">
+    <section class="panel" id="teampanel" aria-labelledby="teamtitle">
+      <h2 id="teamtitle">My Team</h2>
+      <div id="teamcontent"></div>
+    </section>
+
+
+    <section class="panel helppanel">
+      <details class="help">
+        <summary>How the numbers work</summary>
+        <p>Each colored cell is a z-score: how many standard deviations a player sits above or below the average of the top players who would be rostered in your league (teams × roster size). Green helps you, red hurts you.</p>
+        <p>Your league scores FG%, FT%, 3P%, REB, AST, A/TO, STL, BLK and PTS. The three percentages and A/TO are team ratios, so they are weighted by volume: a high-volume 60% shooter counts for more than a 2-shot 70% shooter, and a 10-assist, 3-turnover guard helps your A/TO more than a 1-assist, 0-turnover big. Turnovers only matter through A/TO.</p>
+        <p>"Value" adds up the categories that are switched on. Turn a category off to see rankings for a punt build.</p>
+        <p>The team report adds up the z-scores of your players. In head-to-head you need to win 5 of 9 categories each week, so aim to be clearly ahead in 5 or 6 and don't overpay for the rest.</p>
+      </details>
+      <h3>Use your own numbers</h3>
+      <p class="hint">Load a CSV with columns: name, team, pos, gp, min, pts, reb, ast, stl, blk, tpm, tpa, fgm, fga, ftm, fta, to.</p>
+      <input type="file" id="csv" accept=".csv,text/csv" aria-label="Load CSV file">
+    </section>
+  </aside>
+
+  <aside class="league">
+    <section class="panel" id="leaguepanel" aria-labelledby="leaguetitle">
+      <h2 id="leaguetitle">League</h2>
+      <div id="livescore"></div>
+      <label class="field" for="opp" style="margin-top:8px">Team
+        <select id="opp"></select>
+      </label>
+      <div id="leaguecontent"></div>
+      <div id="standings"></div>
+    </section>
+  </aside>
+</main>
+
+<script src="data/seed-players.js"></script>
+<script src="data/players.js" onerror="void 0"></script>
+<script src="data/my-team.js" onerror="void 0"></script>
+<script src="data/league.js" onerror="void 0"></script>
+<script src="data/matchup.js" onerror="void 0"></script>
+<script src="data/standings.js" onerror="void 0"></script>
+<script>
+(function () {
+  "use strict";
+
+  // Your league's 9 categories (ESPN League Settings > Scoring). Ratio categories carry num/den:
+  // they are scored by volume-weighted impact, the same way a team total is calculated.
+  const CATS = [
+    { k: "fg", label: "FG%", num: "fgm", den: "fga", pct: true },
+    { k: "ft", label: "FT%", num: "ftm", den: "fta", pct: true },
+    { k: "tp", label: "3P%", num: "tpm", den: "tpa", pct: true },
+    { k: "reb", label: "REB" },
+    { k: "ast", label: "AST" },
+    { k: "ato", label: "A/TO", num: "ast", den: "to" },
+    { k: "stl", label: "STL" },
+    { k: "blk", label: "BLK" },
+    { k: "pts", label: "PTS" },
+  ];
+  const SRC_LABEL = { proj: "Projections", season: "Season so far", last: "Last season" };
+
+  // ---------- data loading ----------
+  function fromSeed(seed) {
+    return seed.rows.map((r, i) => {
+      const [name, team, pos, gp, min, pts, reb, ast, stl, blk, tpm, fgp, fga, ftp, fta, to] = r;
+      return {
+        id: "s" + i, name, team, pos, inj: "",
+        proj: { gp, min, pts, reb, ast, stl, blk, tpm, tpa: +(tpm / 0.36).toFixed(2), fga, fgm: +(fgp * fga).toFixed(2), fta, ftm: +(ftp * fta).toFixed(2), to },
+      };
+    });
+  }
+
+  let DATA;
+  if (window.PLAYER_DATA && window.PLAYER_DATA.players && window.PLAYER_DATA.players.length) {
+    DATA = { meta: window.PLAYER_DATA, players: window.PLAYER_DATA.players };
+  } else {
+    DATA = { meta: window.SEED_DATA, players: fromSeed(window.SEED_DATA), estimate: true };
+  }
+
+  // ---------- state ----------
+  const store = {
+    get(k, d) { try { const v = localStorage.getItem("ncc:" + k); return v == null ? d : JSON.parse(v); } catch (e) { return d; } },
+    set(k, v) { try { localStorage.setItem("ncc:" + k, JSON.stringify(v)); } catch (e) { /* storage unavailable */ } },
+  };
+  const state = {
+    src: "proj", mode: store.get("mode", "avg"), teams: store.get("teams", 10), roster: store.get("roster", 13),
+    minGp: 0, cats: new Set(store.get("cats9", CATS.map((c) => c.k))), q: "", pos: "", team: "",
+    show: "all", sort: "value", dir: -1, mine: new Set(initialTeam()), taken: new Set(store.get("taken", [])),
+    owner: store.get("owner", {}), opp: store.get("opp", "") || (window.MATCHUP && window.MATCHUP.opponent) || "",
+  };
+  loadLeague();
+
+  // The roster in data/my-team.js wins whenever its version changes; after that, edits made on the site stick.
+  function initialTeam() {
+    const saved = window.MY_TEAM;
+    if (saved && saved.players && store.get("teamVersion", null) !== saved.version) {
+      const names = saved.players.map((p) => p.name);
+      store.set("mine", names);
+      store.set("teamVersion", saved.version);
+      return names;
+    }
+    return store.get("mine", []);
+  }
+  // Same idea for data/league.js: a new version re-applies every team's players.
+  function loadLeague() {
+    const L = window.LEAGUE;
+    if (!L || !L.teams) return;
+    if (store.get("teams", null) == null) state.teams = L.teams.length + 1;
+    if (store.get("leagueVersion", null) === L.version) return;
+    // Start from a clean slate for every league team, so players a team has dropped become free agents
+    // again. Players marked with a plain ✕ (no team) are kept.
+    for (const [name, team] of Object.entries(state.owner)) {
+      if (team) { delete state.owner[name]; state.taken.delete(name); }
+    }
+    for (const t of L.teams) for (const name of t.players) {
+      state.owner[name] = t.name;
+      state.taken.add(name);
+      state.mine.delete(name);
+    }
+    if (!state.opp) state.opp = L.teams[0].name;
+    store.set("owner", state.owner); store.set("taken", [...state.taken]); store.set("mine", [...state.mine]);
+    store.set("leagueVersion", L.version);
+  }
+  const leagueTeams = () => {
+    const names = ((window.LEAGUE && window.LEAGUE.teams) || []).map((t) => t.name);
+    for (const o of Object.values(state.owner)) if (o && !names.includes(o)) names.push(o);
+    return names;
+  };
+
+  const ROLE = Object.fromEntries(((window.MY_TEAM && window.MY_TEAM.players) || []).map((p) => [p.name, p]));
+
+  const $ = (id) => document.getElementById(id);
+  const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+
+  // ---------- math ----------
+  function buildRows() {
+    const out = [];
+    for (const p of DATA.players) {
+      const s = p[state.src];
+      if (!s || !s.gp || s.gp < state.minGp) continue;
+      const f = state.mode === "tot" ? s.gp : 1;
+      out.push({
+        p, gp: s.gp, min: s.min || 0,
+        fgm: s.fgm * f, fga: s.fga * f, ftm: s.ftm * f, fta: s.fta * f,
+        tpm: s.tpm * f, tpa: (s.tpa != null ? s.tpa : s.tpm / 0.36) * f, pts: s.pts * f, reb: s.reb * f, ast: s.ast * f, stl: s.stl * f, blk: s.blk * f, to: s.to * f,
+      });
+    }
+    return out;
+  }
+
+  function scoreAgainst(rows, pool) {
+    const sum = (k) => pool.reduce((a, r) => a + r[k], 0);
+    const avg = {};
+    for (const c of CATS) if (c.num) avg[c.k] = sum(c.num) / (sum(c.den) || 1);
+    const byKey = Object.fromEntries(CATS.map((c) => [c.k, c]));
+    const raw = (r, k) => { const c = byKey[k]; return c.num ? r[c.num] - avg[k] * r[c.den] : r[k]; };
+    const dist = {};
+    for (const c of CATS) {
+      const vals = pool.map((r) => raw(r, c.k));
+      const mean = vals.reduce((a, b) => a + b, 0) / (vals.length || 1);
+      const sd = Math.sqrt(vals.reduce((a, b) => a + (b - mean) ** 2, 0) / (vals.length || 1)) || 1;
+      dist[c.k] = { mean, sd };
+    }
+    for (const r of rows) {
+      r.z = {};
+      let v = 0;
+      for (const c of CATS) {
+        let z = (raw(r, c.k) - dist[c.k].mean) / dist[c.k].sd;
+        if (c.neg) z = -z;
+        r.z[c.k] = z;
+        if (state.cats.has(c.k)) v += z;
+      }
+      r.value = v;
+    }
+    return avg;
+  }
+
+  function compute() {
+    const rows = buildRows();
+    const N = Math.max(20, state.teams * state.roster);
+    let pool = rows;
+    for (let i = 0; i < 3; i++) {
+      scoreAgainst(rows, pool);
+      pool = [...rows].sort((a, b) => b.value - a.value).slice(0, N);
+    }
+    const avg = scoreAgainst(rows, pool);
+    rows.sort((a, b) => b.value - a.value).forEach((r, i) => (r.rank = i + 1));
+    return { rows, avg, N };
+  }
+
+  // ---------- rendering ----------
+  function zColor(z) {
+    const a = Math.min(Math.abs(z), 2.5) / 2.5 * 58;
+    if (a < 4) return "";
+    return `background:color-mix(in srgb, var(${z > 0 ? "--good" : "--bad"}) ${a.toFixed(0)}%, transparent)`;
+  }
+  const fmt1 = (n) => n.toFixed(1);
+  const fmtPct = (m, a) => a ? (m / a).toFixed(3).replace(/^0/, "") : "—";
+
+  const COLS = [
+    { k: "rank", label: "Rk", cls: "rk" },
+    { k: "star", label: "★ ✕" },
+    { k: "name", label: "Player", cls: "l player" },
+    { k: "gp", label: "GP" },
+    { k: "min", label: "MPG" },
+    ...CATS.map((c) => ({ k: c.k, label: c.label, cat: true })),
+    { k: "value", label: "Value" },
+  ];
+
+  function renderHead() {
+    $("head").innerHTML = COLS.map((c) => {
+      const cls = [c.cls || "", c.cat ? (state.cats.has(c.k) ? "on" : "off") : "", state.sort === c.k ? "on" : ""].join(" ");
+      const arrow = state.sort === c.k ? (state.dir < 0 ? " ▾" : " ▴") : "";
+      return `<th class="${cls}" data-k="${c.k}" scope="col">${c.label}${arrow}</th>`;
+    }).join("");
+  }
+
+  function sortVal(r, k) {
+    if (k === "name") return r.p.name;
+    if (k === "rank") return -r.rank;
+    if (k === "star") return state.mine.has(r.p.name) ? 1 : 0;
+    if (k === "gp" || k === "min" || k === "value") return r[k];
+    return r.z[k];
+  }
+
+  let last;
+  function render() {
+    last = compute();
+    const { rows } = last;
+    const q = state.q.trim().toLowerCase();
+    let list = rows.filter((r) =>
+      (!q || r.p.name.toLowerCase().includes(q)) &&
+      (!state.pos || (r.p.pos || "").split(",").includes(state.pos)) &&
+      (!state.team || r.p.team === state.team) &&
+      (state.show === "all" || (state.show === "mine" ? state.mine.has(r.p.name) : !state.mine.has(r.p.name) && !state.taken.has(r.p.name))));
+    const k = state.sort;
+    list.sort((a, b) => {
+      const x = sortVal(a, k), y = sortVal(b, k);
+      return (typeof x === "string" ? x.localeCompare(y) : x - y) * state.dir;
+    });
+    const shown = list.slice(0, 400);
+    renderHead();
+    const per = state.mode === "tot";
+    $("body").innerHTML = shown.length ? shown.map((r) => {
+      const mine = state.mine.has(r.p.name);
+      const cells = CATS.map((c) => {
+        const off = state.cats.has(c.k) ? "" : " off";
+        let txt;
+        if (c.pct) txt = `${fmtPct(r[c.num], r[c.den])}<small>${fmt1(r[c.num])}/${fmt1(r[c.den])}</small>`;
+        else if (c.num) txt = `${r[c.den] ? (r[c.num] / r[c.den]).toFixed(2) : "—"}<small>${fmt1(r[c.num])}/${fmt1(r[c.den])}</small>`;
+        else txt = per ? Math.round(r[c.k]) : fmt1(r[c.k]);
+        return `<td class="z${off}" style="${zColor(r.z[c.k])}" title="z ${r.z[c.k].toFixed(2)}">${txt}</td>`;
+      }).join("");
+      const taken = state.taken.has(r.p.name);
+      return `<tr class="${mine ? "mine" : ""}${taken ? " taken" : ""}">
+        <td class="rk">${r.rank}</td>
+        <td><button type="button" class="star" data-name="${esc(r.p.name)}" aria-pressed="${mine}" aria-label="${mine ? "Remove from" : "Add to"} my team" title="My team">★</button><button type="button" class="tk" data-name="${esc(r.p.name)}" aria-pressed="${taken}" aria-label="Mark as taken by another team" title="Taken by another team">✕</button></td>
+        <td class="l player"><span class="pname">${esc(r.p.name)}${r.p.inj ? `<span class="inj" title="${esc(r.p.inj)}">${esc(shortInj(r.p.inj))}</span>` : ""}</span><span class="pmeta">${esc(r.p.team)} · ${esc((r.p.pos || "").replace(/,/g, "/"))}${state.owner[r.p.name] ? ` · <span class="owner">${esc(state.owner[r.p.name])}</span>` : ""}</span></td>
+        <td>${r.gp}</td><td>${fmt1(r.min)}</td>${cells}
+        <td class="val" style="${zColor(r.value / 3)}">${r.value.toFixed(2)}</td>
+      </tr>`;
+    }).join("") : `<tr><td class="empty" colspan="${COLS.length}">${state.show === "mine" ? "Star players in the list to build your team." : "No players match these filters."}</td></tr>`;
+    renderTeam();
+    renderLeague();
+  }
+
+  function shortInj(s) {
+    return ({ OUT: "OUT", DAY_TO_DAY: "DTD", INJURY_RESERVE: "IR", SUSPENSION: "SUSP", QUESTIONABLE: "Q", DOUBTFUL: "D" })[s] || s.slice(0, 4);
+  }
+
+  const sameAsSaved = () => { const n = window.MY_TEAM.players.map((p) => p.name); return n.length === state.mine.size && n.every((x) => state.mine.has(x)); };
+  const roleOrder = (r) => (ROLE[r.p.name] && ROLE[r.p.name].role === "Bench" ? 1 : 0);
+
+  const myName = () => (window.LEAGUE && window.LEAGUE.myTeam) || "My Team";
+
+  function renderTeam() {
+    $("teamtitle").textContent = myName();
+    const { rows } = last;
+    const mine = rows.filter((r) => state.mine.has(r.p.name));
+    const missing = [...state.mine].filter((n) => !mine.some((r) => r.p.name === n));
+    const box = $("teamcontent");
+    if (!mine.length) {
+      box.innerHTML = `<p class="verdict">No players yet. Tap the ★ next to each player on your ESPN roster and this panel shows which categories you are winning and which ones you need.</p>${window.MY_TEAM ? `<p><button type="button" class="btn" id="resetteam">Reload saved roster</button></p>` : ""}`;
+      return;
+    }
+    const n = mine.length;
+    const tot = {};
+    for (const c of CATS) tot[c.k] = mine.reduce((a, r) => a + r.z[c.k], 0);
+    const per = (k) => tot[k] / n;
+    // "Close" = team total within ±1.0 z: a category that can swing either way in a given week.
+    const status = (k) => !state.cats.has(k) ? "punt" : Math.abs(tot[k]) < 1 ? "close" : per(k) >= 0.35 ? "strong" : per(k) <= -0.15 ? "need" : "ok";
+    const statusLabel = { strong: "Strong", ok: "Even", need: "Need", close: "Close", punt: "Punted" };
+    const maxAbs = Math.max(1.5, ...CATS.map((c) => Math.abs(per(c.k))));
+
+    const active = CATS.filter((c) => state.cats.has(c.k));
+    const ranked = [...active].sort((a, b) => per(a.k) - per(b.k));
+    const strong = ranked.filter((c) => status(c.k) === "strong").reverse();
+    const needs = ranked.filter((c) => status(c.k) === "need");
+    const wins = active.filter((c) => per(c.k) > 0).length;
+
+    let verdict = `<b>${wins} of ${active.length}</b> categories above league average. `;
+    verdict += strong.length ? `Strong in <b>${strong.map((c) => c.label).join(", ")}</b>. ` : "";
+    verdict += needs.length ? `Needs help in <b>${needs.map((c) => c.label).join(", ")}</b>.` : "No clear weak spots.";
+    const closeOnes = active.filter((c) => status(c.k) === "close");
+    if (closeOnes.length) verdict += ` <span class="close-note">Close: ${closeOnes.map((c) => c.label).join(", ")}</span>.`;
+    const worst = ranked[0];
+    if (worst && per(worst.k) < -0.7 && active.length === CATS.length) {
+      verdict += ` You are far behind in ${worst.label}, so punting it and turning it off above could free you to stack the rest.`;
+    }
+
+    const bars = CATS.map((c) => {
+      const v = per(c.k), st = status(c.k);
+      const w = Math.min(Math.abs(v) / maxAbs, 1) * 50;
+      const left = v >= 0 ? 50 : 50 - w;
+      const col = st === "punt" ? "var(--line)" : st === "close" ? "var(--close)" : v >= 0 ? "var(--good)" : "var(--bad)";
+      return `<span class="cat">${c.label}</span>
+        <span class="track" role="img" aria-label="${c.label} ${v.toFixed(2)} per player"><span class="fill" style="left:${left}%;width:${w}%;background:${col}"></span></span>
+        <span class="pill ${st}">${statusLabel[st]}</span>
+        <span class="zval">${tot[c.k] >= 0 ? "+" : ""}${tot[c.k].toFixed(1)}</span>`;
+    }).join("");
+
+    // Suggested pickups: best players outside my team for the weakest active categories.
+    const target = (needs.length ? needs : ranked.slice(0, 2)).map((c) => c.k);
+    const adds = rows.filter((r) => !state.mine.has(r.p.name) && !state.taken.has(r.p.name))
+      .map((r) => ({ r, s: target.reduce((a, k) => a + r.z[k], 0) + r.value * 0.15 }))
+      .sort((a, b) => b.s - a.s).slice(0, 8);
+
+    box.innerHTML = `
+      <p class="verdict">${verdict}</p>
+      <h3>Categories (z-score, team total)</h3>
+      <div class="bars">${bars}</div>
+      <h3>Best adds for ${target.map((k) => CATS.find((c) => c.k === k).label).join(" + ")}</h3>
+      <ul class="adds">${adds.map(({ r }) => `<li><span>${esc(r.p.name)} <small>${esc(r.p.team)} · #${r.rank}</small></span>
+        <small>${target.map((k) => `${CATS.find((c) => c.k === k).label} ${r.z[k] >= 0 ? "+" : ""}${r.z[k].toFixed(1)}`).join(" ")}</small>
+        <span class="btns"><button type="button" class="mini" data-add="${esc(r.p.name)}">Add</button> <button type="button" class="mini" data-take="${esc(r.p.name)}" title="Already on another team in your league">Taken</button></span></li>`).join("")}</ul>
+      <p class="hint">Mark players other managers own with ✕ (or "Taken") so suggestions only show free agents.</p>
+      <h3>Roster (${n})</h3>
+      <ul class="roster">${mine.sort((a, b) => (roleOrder(a) - roleOrder(b)) || (b.value - a.value)).map((r) => {
+        const info = ROLE[r.p.name];
+        return `<li><span>${esc(r.p.name)} <small>${esc(r.p.team)}${r.p.inj ? ` · <span class="warn">${esc(shortInj(r.p.inj))}</span>` : ""}</small></span>
+        <small>#${r.rank} · ${r.value.toFixed(2)}</small>
+        <button type="button" class="mini" data-remove="${esc(r.p.name)}">Remove</button>
+        ${info ? `<small class="note"><b>${esc(info.role)}</b>${info.note ? " · " + esc(info.note) : ""}</small>` : ""}</li>`;
+      }).join("")}</ul>
+      ${missing.length ? `<p class="hint">Not in this stat set: ${missing.map(esc).join(", ")}</p>` : ""}
+      <p style="margin-top:12px; display:flex; gap:8px; flex-wrap:wrap"><button type="button" class="btn" id="clearteam">Clear my team</button>${window.MY_TEAM && !sameAsSaved() ? `<button type="button" class="btn" id="resetteam">Reload saved roster</button>` : ""}${state.taken.size ? `<button type="button" class="btn" id="cleartaken">Clear ${state.taken.size} taken</button>` : ""}</p>`;
+  }
+
+  function teamLine(list) {
+    const sum = (k) => list.reduce((a, r) => a + r[k], 0);
+    const t = {};
+    for (const c of CATS) t[c.k] = c.num ? (sum(c.den) ? sum(c.num) / sum(c.den) : 0) : sum(c.k);
+    return t;
+  }
+
+  // This week's real head-to-head score, saved from ESPN by scripts/fetch-league.mjs.
+  function renderLive() {
+    const M = window.MATCHUP;
+    if (!M || !M.cats || !M.cats.length) { $("livescore").innerHTML = ""; return; }
+    const fmt = (c, v) => v == null ? "—" : /%$/.test(c.label) ? v.toFixed(3).replace(/^0/, "") : Number.isInteger(v) ? v : v.toFixed(2);
+    const cells = M.cats.map((c) => {
+      const mark = (side) => c.result === "TIE" ? " c" : c.result === side ? " w" : "";
+      return `<span class="cat">${esc(c.label)}</span><span class="v${mark("WIN")}">${fmt(c, c.mine)}</span><span class="v${mark("LOSS")}">${fmt(c, c.theirs)}</span>`;
+    }).join("");
+    const { wins, losses, ties } = M.score;
+    const when = new Date(M.updated).toLocaleString([], { weekday: "short", hour: "numeric", minute: "2-digit" });
+    $("livescore").innerHTML = `<h3>Week ${M.week} live</h3>
+      <p class="score">${wins}–${losses}${ties ? "–" + ties : ""}</p>
+      <p class="hint">${wins > losses ? "Winning" : wins < losses ? "Losing" : "Tied"} against ${esc(M.opponent)}. From ESPN, last changed ${esc(when)}.</p>
+      <div class="mu"><span></span><span class="h" style="text-align:right">${esc(myName())}</span><span class="h" style="text-align:right">${esc(M.opponent)}</span>${cells}</div>`;
+  }
+
+  // Standings and every matchup this week, saved from ESPN by scripts/fetch-league.mjs.
+  function renderStandings() {
+    const S = window.STANDINGS;
+    if (!S || !S.teams || !S.teams.length) { $("standings").innerHTML = ""; return; }
+    const rec = (x) => `${x.wins}–${x.losses}${x.ties ? "–" + x.ties : ""}`;
+    const games = (S.matchups || []).map((m) => {
+      const lead = (a, b) => a.wins > b.wins ? " lead" : "";
+      return `<li class="${m.home.mine || m.away.mine ? "me" : ""}">
+        <span class="t${lead(m.away, m.home)}">${esc(m.away.name)}</span><span class="${lead(m.away, m.home).trim()}">${rec(m.away)}</span>
+        <span class="t${lead(m.home, m.away)}">${esc(m.home.name)}</span><span class="${lead(m.home, m.away).trim()}">${rec(m.home)}</span></li>`;
+    }).join("");
+    const rows = S.teams.map((t, i) => `<tr class="${t.mine ? "me" : ""}"><td>${t.seed || i + 1}</td><td title="${esc(t.name)}">${esc(t.name)}</td><td>${rec(t)}</td><td>${t.pct.toFixed(3).replace(/^0/, "")}</td><td>${t.gb == null ? "" : t.gb || "–"}</td></tr>`).join("");
+    $("standings").innerHTML = `${games ? `<h3>Week ${S.week} matchups</h3><ul class="games">${games}</ul>` : ""}
+      <h3>Standings</h3>
+      <table class="stand"><thead><tr><th>#</th><th>Team</th><th>W–L–T</th><th>Pct</th><th>GB</th></tr></thead><tbody>${rows}</tbody></table>
+      <p class="hint">Category wins and losses from ESPN.</p>`;
+  }
+
+  function renderLeague() {
+    const teams = leagueTeams();
+    const sel = $("opp");
+    if (!teams.length) { $("leaguepanel").hidden = true; return; }
+    if (!teams.includes(state.opp)) state.opp = teams[0];
+    renderLive();
+    renderStandings();
+    const opts = teams.map((t) => `<option${t === state.opp ? " selected" : ""}>${esc(t)}</option>`).join("");
+    if (sel.innerHTML !== opts) sel.innerHTML = opts;
+    sel.value = state.opp;
+
+    const { rows } = last;
+    const theirs = rows.filter((r) => state.owner[r.p.name] === state.opp).sort((a, b) => b.value - a.value);
+    const mine = rows.filter((r) => state.mine.has(r.p.name));
+    const ownedNames = Object.keys(state.owner).filter((n) => state.owner[n] === state.opp);
+    const missing = ownedNames.filter((n) => !theirs.some((r) => r.p.name === n));
+
+    let mu = "";
+    if (theirs.length >= 8 && mine.length >= 8) {
+      const size = Math.min(10, mine.length, theirs.length);
+      const best = (list) => [...list].sort((x, y) => y.value - x.value).slice(0, size);
+      const a = teamLine(best(mine)), b = teamLine(best(theirs));
+      let w = 0, l = 0, tie = 0;
+      const closeCats = [];
+      const cells = CATS.map((c) => {
+        const on = state.cats.has(c.k);
+        const fmt = (v) => c.pct ? v.toFixed(3).replace(/^0/, "") : c.num ? v.toFixed(2) : state.mode === "tot" ? Math.round(v) : v.toFixed(1);
+        let win = 0;
+        const gap = Math.abs(a[c.k] - b[c.k]);
+        const close = on && (c.pct ? gap <= 0.010 : c.num ? gap <= 0.15 : gap <= 0.05 * Math.max(a[c.k], b[c.k]));
+        if (close) closeCats.push(c.label);
+        if (Math.abs(a[c.k] - b[c.k]) > (c.pct ? 0.0005 : c.num ? 0.005 : 0.05)) win = (a[c.k] > b[c.k]) !== !!c.neg ? 1 : -1;
+        if (on) { if (win > 0) w++; else if (win < 0) l++; else tie++; }
+        const off = on ? "" : " off";
+        const mark = (side) => !on ? "" : close && (win === side || win === 0) ? " c" : win === side ? " w" : "";
+        return `<span class="cat${off}${close ? " close-note" : ""}" title="${close ? "Close: could go either way" : ""}">${c.label}</span><span class="v${mark(1)}${off}">${fmt(a[c.k])}</span><span class="v${mark(-1)}${off}">${fmt(b[c.k])}</span>`;
+      }).join("");
+      mu = `<h3>Matchup preview</h3>
+        <p class="score">${w}–${l}${tie ? "–" + tie : ""}</p>
+        ${closeCats.length ? `<p class="hint"><span class="close-note">Close: ${closeCats.join(", ")}</span>. These could go either way, so they are the categories to target with pickups and streamers.</p>` : ""}
+        <p class="hint">${w > l ? "You'd win" : w < l ? "You'd lose" : "Too close to call"}, comparing each side's best ${size} players (${state.mode === "tot" ? "season totals" : "per game"}). Real weeks also depend on games played and injuries.</p>
+        <div class="mu"><span></span><span class="h" style="text-align:right">${esc(myName())}</span><span class="h" style="text-align:right">${esc(state.opp)}</span>${cells}</div>`;
+    } else {
+      mu = `<p class="hint">Add at least 8 of their players to see a head-to-head matchup preview against your team.</p>`;
+    }
+
+    $("leaguecontent").innerHTML = `
+      ${mu}
+      <h3>${esc(state.opp)} roster (${ownedNames.length})</h3>
+      <ul class="roster">${theirs.map((r) => `<li><span>${esc(r.p.name)} <small>${esc(r.p.team)}${r.p.inj ? ` · <span class="warn">${esc(shortInj(r.p.inj))}</span>` : ""}</small></span>
+        <small>#${r.rank} · ${r.value.toFixed(2)}</small>
+        <button type="button" class="mini" data-drop="${esc(r.p.name)}" title="Remove from this team">Remove</button></li>`).join("")}</ul>
+      ${missing.length ? `<p class="hint">Not in this stat set: ${missing.map(esc).join(", ")}</p>` : ""}
+      <div class="addrow">
+        <input id="oppplayer" list="allplayers" placeholder="Add a player to ${esc(state.opp)}" aria-label="Player name">
+        <button type="button" class="btn" id="oppadd">Add</button>
+      </div>
+      <p class="hint" id="oppmsg" role="status"></p>`;
+  }
+
+  // ---------- controls ----------
+  function setupControls() {
+    const hasSeason = DATA.players.filter((p) => p.season).length > 30;
+    const sources = ["proj", "season", "last"].filter((s) => s === "season" ? hasSeason : DATA.players.some((p) => p[s]));
+    const season = DATA.meta.season || "2026-27";
+    const lastSeason = season.replace(/^(\d{4})-(\d{2})$/, (_, a, b) => `${+a - 1}-${String(+b - 1).padStart(2, "0")}`);
+    const names = { proj: `${season} projections`, season: `${season} season so far`, last: `${lastSeason} actual` };
+    $("src").innerHTML = sources.map((s) => `<option value="${s}">${names[s]}</option>`).join("");
+    state.src = sources[0] || "proj";
+    $("src").value = state.src;
+
+    const teams = [...new Set(DATA.players.map((p) => p.team))].filter(Boolean).sort();
+    $("team").innerHTML = `<option value="">All teams</option>` + teams.map((t) => `<option>${esc(t)}</option>`).join("");
+
+    $("cats").innerHTML = CATS.map((c) => `<button type="button" class="chip" data-cat="${c.k}" aria-pressed="${state.cats.has(c.k)}">${c.label}</button>`).join("");
+
+    let dl = $("allplayers");
+    if (!dl) { dl = document.createElement("datalist"); dl.id = "allplayers"; document.body.appendChild(dl); }
+    dl.innerHTML = [...DATA.players].sort((a, b) => (b.own || 0) - (a.own || 0)).map((p) => `<option value="${esc(p.name)}">${esc(p.team)}</option>`).join("");
+
+    $("teams").value = state.teams; $("roster").value = state.roster;
+    setSeg("mode", state.mode);
+  }
+
+  function setSeg(group, val) {
+    if (group === "mode") { $("mode-avg").setAttribute("aria-pressed", val === "avg"); $("mode-tot").setAttribute("aria-pressed", val === "tot"); }
+    if (group === "show") for (const v of ["all", "mine", "free"]) $("show-" + v).setAttribute("aria-pressed", v === val);
+  }
+
+  // The GitHub Action writes these files from ESPN every hour.
+  const DATA_FILES = ["data/players.js", "data/my-team.js", "data/league.js", "data/matchup.js", "data/standings.js"];
+  const SYNC_URL = "https://github.com/NNN-2912/desktop-tutorial/actions/workflows/update-data.yml";
+
+  function renderInfo() {
+    const m = DATA.meta;
+    const when = m.updated ? new Date(m.updated).toLocaleString(undefined, { day: "numeric", month: "short", hour: "numeric", minute: "2-digit" }) : "";
+    let note = "";
+    try { note = sessionStorage.getItem("ncc:refreshed") || ""; sessionStorage.removeItem("ncc:refreshed"); } catch (e) { /* storage unavailable */ }
+    $("datainfo").innerHTML = (DATA.estimate
+      ? `<b>${esc(m.source)}</b> · ${esc(m.season || "")}<br><span class="warn">Approximate numbers until the ESPN data update runs.</span>`
+      : `<b>${esc(m.source)}</b> · ${esc(m.season || "")} · ${DATA.players.length} players<br>ESPN sync ${esc(when)}`) +
+      (note ? `<br>${esc(note)}` : "") +
+      `<div class="refresh"><a href="${SYNC_URL}" target="_blank" rel="noopener" title="Run workflow on GitHub to sync from ESPN right away">Sync from ESPN now</a><button type="button" class="btn" id="refresh">Refresh data</button></div>`;
+  }
+
+  // Re-download the data files past the browser cache, then reload so every panel starts from them.
+  async function refreshData() {
+    const b = $("refresh");
+    b.disabled = true; b.textContent = "Refreshing…";
+    const before = DATA.meta.updated;
+    try {
+      const got = await Promise.all(DATA_FILES.map((f) => fetch(f, { cache: "reload" }).then((r) => r.ok ? r.text() : "")));
+      const stamp = (got[0].match(/"updated":"([^"]+)"/) || [])[1];
+      const fresh = stamp && stamp !== before;
+      try { sessionStorage.setItem("ncc:refreshed", fresh ? "New data loaded." : "Already up to date. ESPN syncs every hour."); } catch (e) { /* storage unavailable */ }
+      location.reload();
+    } catch (err) {
+      b.disabled = false; b.textContent = "Refresh data";
+      $("datainfo").insertAdjacentHTML("beforeend", `<br><span class="warn">Could not refresh: ${esc(err.message)}</span>`);
+    }
+  }
+
+  function on(id, ev, fn) { $(id).addEventListener(ev, fn); }
+  on("src", "change", (e) => { state.src = e.target.value; state.minGp = state.src === "season" ? Math.max(state.minGp, 1) : state.minGp; render(); });
+  on("mode-avg", "click", () => { state.mode = "avg"; store.set("mode", "avg"); setSeg("mode", "avg"); render(); });
+  on("mode-tot", "click", () => { state.mode = "tot"; store.set("mode", "tot"); setSeg("mode", "tot"); render(); });
+  on("teams", "change", (e) => { state.teams = Math.max(6, Math.min(20, +e.target.value || 10)); store.set("teams", state.teams); render(); });
+  on("roster", "change", (e) => { state.roster = Math.max(8, Math.min(20, +e.target.value || 13)); store.set("roster", state.roster); render(); });
+  on("mingp", "change", (e) => { state.minGp = Math.max(0, +e.target.value || 0); render(); });
+  on("q", "input", (e) => { state.q = e.target.value; render(); });
+  on("pos", "change", (e) => { state.pos = e.target.value; render(); });
+  on("team", "change", (e) => { state.team = e.target.value; render(); });
+  for (const v of ["all", "mine", "free"]) on("show-" + v, "click", () => { state.show = v === "free" ? "free" : v; setSeg("show", v); render(); });
+  on("cats", "click", (e) => {
+    const b = e.target.closest("[data-cat]"); if (!b) return;
+    const k = b.dataset.cat;
+    if (state.cats.has(k)) { if (state.cats.size > 1) state.cats.delete(k); } else state.cats.add(k);
+    b.setAttribute("aria-pressed", state.cats.has(k));
+    store.set("cats9", [...state.cats]);
+    render();
+  });
+  on("head", "click", (e) => {
+    const th = e.target.closest("th"); if (!th) return;
+    const k = th.dataset.k;
+    if (state.sort === k) state.dir = -state.dir; else { state.sort = k; state.dir = k === "name" ? 1 : -1; }
+    render();
+  });
+  function toggleMine(name, want) {
+    const has = state.mine.has(name);
+    if (want === undefined) want = !has;
+    if (want) state.mine.add(name); else state.mine.delete(name);
+    store.set("mine", [...state.mine]);
+    render();
+  }
+  function toggleTaken(name) {
+    if (state.taken.has(name)) { state.taken.delete(name); delete state.owner[name]; }
+    else { state.taken.add(name); state.mine.delete(name); store.set("mine", [...state.mine]); }
+    store.set("taken", [...state.taken]); store.set("owner", state.owner);
+    render();
+  }
+  function setOwner(name, team) {
+    state.owner[name] = team; state.taken.add(name); state.mine.delete(name);
+    store.set("owner", state.owner); store.set("taken", [...state.taken]); store.set("mine", [...state.mine]);
+    render();
+  }
+  on("datainfo", "click", (e) => { if (e.target.id === "refresh") refreshData(); });
+  on("body", "click", (e) => {
+    const b = e.target.closest(".star, .tk"); if (!b) return;
+    if (b.classList.contains("tk")) toggleTaken(b.dataset.name);
+    else { if (state.taken.has(b.dataset.name)) toggleTaken(b.dataset.name); toggleMine(b.dataset.name); }
+  });
+  on("teamcontent", "click", (e) => {
+    const t = e.target;
+    if (t.dataset.add) toggleMine(t.dataset.add, true);
+    else if (t.dataset.take) toggleTaken(t.dataset.take);
+    else if (t.dataset.remove) toggleMine(t.dataset.remove, false);
+    else if (t.id === "clearteam") { state.mine.clear(); store.set("mine", []); render(); }
+    else if (t.id === "resetteam") { state.mine = new Set(window.MY_TEAM.players.map((p) => p.name)); store.set("mine", [...state.mine]); render(); }
+    else if (t.id === "cleartaken") { state.taken.clear(); state.owner = {}; store.set("taken", []); store.set("owner", {}); render(); }
+  });
+  on("opp", "change", (e) => { state.opp = e.target.value; store.set("opp", state.opp); render(); });
+  on("leaguecontent", "click", (e) => {
+    const t = e.target;
+    if (t.dataset.drop) toggleTaken(t.dataset.drop);
+    else if (t.id === "oppadd") addToOpp();
+  });
+  on("leaguecontent", "keydown", (e) => { if (e.target.id === "oppplayer" && e.key === "Enter") { e.preventDefault(); addToOpp(); } });
+  function addToOpp() {
+    const input = $("oppplayer");
+    const typed = input.value.trim().toLowerCase();
+    const msg = (t) => { $("oppmsg").textContent = t; };
+    if (!typed || !state.opp) return;
+    const partial = DATA.players.filter((x) => x.name.toLowerCase().includes(typed));
+    const p = DATA.players.find((x) => x.name.toLowerCase() === typed) || (partial.length === 1 ? partial[0] : null);
+    if (!p) return msg(partial.length ? `"${input.value}" matches ${partial.length} players. Pick the full name from the list.` : `No player called "${input.value}".`);
+    if (state.mine.has(p.name)) return msg(`${p.name} is on your team. Remove him from My Team first if that's wrong.`);
+    const prev = state.owner[p.name];
+    setOwner(p.name, state.opp);
+    if (prev && prev !== state.opp) msg(`Moved ${p.name} from ${prev}.`);
+    setTimeout(() => $("oppplayer") && $("oppplayer").focus(), 0);
+  }
+
+  // ---------- CSV import ----------
+  function parseCSV(text) {
+    const lines = text.replace(/\r/g, "").split("\n").filter((l) => l.trim());
+    const split = (l) => { const out = []; let cur = "", q = false; for (const ch of l) { if (ch === '"') q = !q; else if (ch === "," && !q) { out.push(cur); cur = ""; } else cur += ch; } out.push(cur); return out.map((s) => s.trim()); };
+    const head = split(lines[0]).map((h) => h.toLowerCase().replace(/[^a-z0-9%]/g, ""));
+    const alias = { player: "name", "3pm": "tpm", "3p": "tpm", fg3m: "tpm", "3pa": "tpa", fg3a: "tpa", trb: "reb", treb: "reb", tov: "to", g: "gp", mp: "min", mpg: "min" };
+    const idx = (k) => head.findIndex((h) => (alias[h] || h) === k);
+    const need = ["name", "gp", "pts", "reb", "ast", "stl", "blk", "tpm", "fgm", "fga", "ftm", "fta", "to"];
+    const missing = need.filter((k) => idx(k) < 0);
+    if (missing.length) throw new Error("Missing columns: " + missing.join(", "));
+    return lines.slice(1).map((l, i) => {
+      const c = split(l), g = (k) => { const j = idx(k); return j < 0 ? "" : c[j]; }, n = (k) => parseFloat(g(k)) || 0;
+      return { id: "c" + i, name: g("name"), team: g("team") || "", pos: g("pos") || "", inj: "",
+        proj: { gp: n("gp"), min: n("min"), pts: n("pts"), reb: n("reb"), ast: n("ast"), stl: n("stl"), blk: n("blk"), tpm: n("tpm"), tpa: idx("tpa") >= 0 ? n("tpa") : n("tpm") / 0.36, fgm: n("fgm"), fga: n("fga"), ftm: n("ftm"), fta: n("fta"), to: n("to") } };
+    }).filter((p) => p.name && p.proj.gp);
+  }
+  on("csv", "change", async (e) => {
+    const f = e.target.files[0]; if (!f) return;
+    try {
+      const players = parseCSV(await f.text());
+      DATA = { meta: { source: "Your CSV: " + f.name, season: "", updated: new Date().toISOString() }, players };
+      setupControls(); renderInfo(); render();
+    } catch (err) {
+      $("datainfo").innerHTML = `<span class="warn">Could not read that CSV. ${esc(err.message)}</span>`;
+    }
+  });
+
+  setupControls();
+  renderInfo();
+  render();
+})();
+</script>
