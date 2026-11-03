@@ -2,7 +2,8 @@
 // (the other managers) and data/my-team.js (our team), so trades, adds and drops
 // show up on the site without editing anything by hand. It also saves this week's
 // live head-to-head category scores to data/matchup.js, and the standings plus
-// every matchup this week to data/standings.js.
+// every matchup (with each team's category totals) for every week so far to
+// data/standings.js.
 //
 // Usage: node scripts/fetch-league.mjs
 // Env:   LEAGUE_ID, MY_TEAM_ID, SEASON (year the season ends in, e.g. 2027)
@@ -169,15 +170,41 @@ function standings(data) {
   // ESPN's playoff seed already applies the league's tiebreakers; fall back to win percentage.
   teams.sort((a, b) => (a.seed && b.seed ? a.seed - b.seed : b.pct - a.pct || b.wins - a.wins));
   const week = data.status?.currentMatchupPeriod;
-  const side = (s) => {
-    const sc = s.cumulativeScoreLive || s.cumulativeScore || {};
-    return { name: teamName(byId[s.teamId] || { id: s.teamId }), mine: s.teamId === MY_TEAM_ID, wins: sc.wins ?? 0, losses: sc.losses ?? 0, ties: sc.ties ?? 0 };
+  const ids = scoredStatIds(data);
+  const side = (s, live) => {
+    const sc = (live && s.cumulativeScoreLive) || s.cumulativeScore || {};
+    // Each team's actual category totals for the week (PTS, BLK, FT% ...), keyed by label.
+    const stats = {};
+    for (const id of ids) {
+      const v = sc.scoreByStat?.[id]?.score;
+      if (typeof v === "number") stats[STAT_LABELS[id] || `Stat ${id}`] = v;
+    }
+    return {
+      name: teamName(byId[s.teamId] || { id: s.teamId }), mine: s.teamId === MY_TEAM_ID,
+      wins: sc.wins ?? 0, losses: sc.losses ?? 0, ties: sc.ties ?? 0, stats,
+    };
   };
-  const matchups = (data.schedule || [])
-    .filter((m) => m.matchupPeriodId === week && m.home && m.away)
-    .map((m) => ({ home: side(m.home), away: side(m.away) }))
+  const weekGames = (w) => (data.schedule || [])
+    .filter((m) => m.matchupPeriodId === w && m.home && m.away)
+    .map((m) => ({ home: side(m.home, w === week), away: side(m.away, w === week) }))
     .sort((a, b) => (b.home.mine || b.away.mine) - (a.home.mine || a.away.mine));
-  return { updated: new Date().toISOString(), week, teams, matchups };
+  const matchups = weekGames(week);
+  // Every week played so far, so finished weeks stay comparable after the next one starts.
+  const weeks = [];
+  for (let w = 1; w <= (week || 0); w++) {
+    const games = weekGames(w);
+    if (games.length) weeks.push({ week: w, matchups: games });
+  }
+  return { updated: new Date().toISOString(), week, teams, matchups, weeks };
+}
+
+// The league's scored stat ids, in the dashboard's category order.
+function scoredStatIds(data) {
+  const items = data.settings?.scoringSettings?.scoringItems || [];
+  const ORDER = [19, 20, 21, 6, 3, 35, 2, 1, 0].map(String);
+  const rank = (id) => (ORDER.includes(id) ? ORDER.indexOf(id) : ORDER.length);
+  const ids = items.length ? items.map((i) => String(i.statId)) : ORDER;
+  return ids.sort((a, b) => rank(a) - rank(b));
 }
 
 function currentMatchup(data, myId) {

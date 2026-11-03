@@ -1,5 +1,7 @@
 # NBA 9-Cat Checker
 
+**The home page (`index.html`) is the league view.** It shows every matchup this week as an ESPN-style box score (the winner of each category shaded green), then a table of every team in all 9 categories, colored by league rank, and where our team ranks. Pick a week, the average week so far, or what each current roster adds up to per game. It opens in dark mode; tap **Light mode** to switch. The player rankings tool described below is now at `players.html`.
+
 A player-value tool for our **ESPN fantasy basketball head-to-head league** (YTBBB), scoring **FG%, FT%, 3P%, REB, AST, A/TO, STL, BLK and PTS**. It is modeled on Hashtag Basketball's projections page.
 
 - Ranks every player by z-score in each of the 9 categories, colored green (helps you) to red (hurts you). The categories are set in the `CATS` list in `index.html`.
