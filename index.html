@@ -103,8 +103,18 @@ table.sb { min-width: 0; width: 100%; table-layout: fixed; font-size: 14px; }
 .sb th:last-child, .sb td:last-child { width: 8%; text-align: center; border-left: 1px solid var(--line); }
 .sb td:first-child { color: var(--muted); }
 .sb tr.me td:first-child { color: var(--ink); font-weight: 700; background: transparent; }
-.sb tbody tr:last-child td { border-bottom: 4px solid var(--bg); }
-.sb tbody.mine tr td:first-child { box-shadow: inset 3px 0 0 var(--star); padding-left: 9px; }
+.sb tbody tr:last-child td { border-bottom: 0; }
+.mgrid { display: grid; grid-template-columns: repeat(auto-fit, minmax(540px, 1fr)); gap: 10px; }
+.mcard { border: 1px solid var(--line); border-radius: 10px; padding: 8px 10px 4px; min-width: 0; }
+.mcard.mine { border: 2px solid var(--star); padding: 7px 9px 3px; }
+.mhd { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: center; gap: 10px; font: 700 16px/1.15 var(--font-display); }
+.mhd .n { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mhd .n.r { text-align: right; }
+.mhd .sc { font-size: 22px; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.mhd .sc i { font: 500 12px var(--font-data); color: var(--muted); margin: 0 8px; }
+.mhd .sc .p { color: var(--p-ink); } .mhd .sc .g { color: var(--g-ink); }
+.mcard table.sb { font-size: 13px; margin-top: 4px; }
+.mcard .sb th, .mcard .sb td { padding: 4px 4px; }
 .sb td.score { font-weight: 700; }
 .sb td.p, td.p { background: var(--win-p); }
 .sb td.g, td.g { background: var(--win-g); }
@@ -118,6 +128,11 @@ table.sb { min-width: 0; width: 100%; table-layout: fixed; font-size: 14px; }
   .sb .lg { display: none; } .sb .sm { display: inline; }
   .sb th.build::before { font-size: 9px; }
   section.sbsec { padding: 12px 10px; }
+  .mgrid { grid-template-columns: 1fr; gap: 8px; }
+  .mcard { padding: 6px 6px 2px; } .mcard.mine { padding: 5px 5px 1px; }
+  .mhd { font-size: 14px; gap: 6px; } .mhd .sc { font-size: 18px; } .mhd .sc i { margin: 0 5px; }
+  .mcard table.sb { font-size: 11.5px; }
+  .mcard .sb th, .mcard .sb td { padding: 3px 3px 3px 1px; }
 }
 .byes { color: var(--muted); font-size: 13px; margin: 10px 0 0; }
 /* Matchups */
@@ -407,12 +422,16 @@ footer a { color: var(--muted); }
         const win = typeof x === "number" && typeof y === "number" && x > y;
         return `<td class="${win ? col(s) : ""}">${has ? cell(c, x) : "–"}</td>`;
       }).join("")}<td class="score ${s.wins > o.wins ? col(s) : ""}">${rec3(s)}</td></tr>`;
-      return `<tbody class="${m.home.mine || m.away.mine ? "mine" : ""}">${row(sides[0], sides[1])}${row(sides[1], sides[0])}</tbody>`;
+      const sc = (s, o) => `<span class="${s.wins > o.wins ? col(s) : ""}">${rec3(s)}</span>`;
+      return `<div class="mcard${m.home.mine || m.away.mine ? " mine" : ""}">
+        <div class="mhd"><span class="n">${esc(sides[0].name)}</span><span class="sc">${sc(sides[0], sides[1])}<i>vs</i>${sc(sides[1], sides[0])}</span><span class="n r">${esc(sides[1].name)}</span></div>
+        <table class="sb"><thead><tr><th>Team</th>${CATS.map((c) => `<th class="${BUILD.has(c) ? "build" : ""}">${esc(c)}</th>`).join("")}<th>Score</th></tr></thead>
+        <tbody>${row(sides[0], sides[1])}${row(sides[1], sides[0])}</tbody></table></div>`;
     };
     const playing = new Set(games.flatMap((m) => [m.home.name, m.away.name]));
     const bye = names.filter((n) => !playing.has(n));
-    $("boxes").innerHTML = `<table class="sb"><thead><tr><th>Team</th>${CATS.map((c) => `<th class="${BUILD.has(c) ? "build" : ""}">${esc(c)}</th>`).join("")}<th>Score</th></tr></thead>${games.map(box).join("")}</table>` +
-      `<p class="byes">${w.week === S.week ? "Live, updates every hour. " : "Final. "}Each pair of rows is one matchup, yours first. Red = top team winning the category, green = bottom team (you, in your matchup).${bye.length ? ` Bye: ${esc(bye.join(", "))}.` : ""}${weeks.length ? "" : " Other teams' category numbers appear after the next ESPN sync."}</p>`;
+    $("boxes").innerHTML = `<div class="mgrid">${games.map(box).join("")}</div>` +
+      `<p class="byes">${w.week === S.week ? "Live, updates every hour. " : "Final. "}Your matchup is first. Red = top team winning the category, green = bottom team (you, in your matchup).${bye.length ? ` Bye: ${esc(bye.join(", "))}.` : ""}${weeks.length ? "" : " Other teams' category numbers appear after the next ESPN sync."}</p>`;
   }
 
   function renderInfo() {
