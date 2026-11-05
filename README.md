@@ -34,6 +34,8 @@ If `data/players.js` is missing, the app falls back to `data/seed-players.js`, a
 2. On GitHub, open **Settings → Pages**, set **Source** to "Deploy from a branch", pick `main` and `/ (root)`, and save.
 3. After a minute your site is live at `https://<your-username>.github.io/<repo-name>/`. Bookmark it on your phone.
 
+**This week's box scores update live.** While the page is open, it asks ESPN's league API for this week's matchups directly from your browser (the league is public, so no login is needed). It checks every 15 seconds while numbers are changing, slows down to every 2 minutes when nothing changes, and pauses while the tab is in the background. The top right shows "Live · updated Ns ago", counting up every second. If ESPN can't be reached, the page keeps showing the last hourly sync. Rosters, player stats and finished weeks still come from the hourly sync below.
+
 To get the latest data on the site, tap **Refresh data** at the top right. It reloads the newest files the hourly sync saved. To pull from ESPN right away instead of waiting for the next hourly sync, tap **Sync from ESPN now** (or open **Actions → Update player data → Run workflow**), wait about a minute, then tap **Refresh data**.
 
 ## How values are calculated
