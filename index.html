@@ -148,7 +148,6 @@ table.sb { min-width: 0; width: 100%; table-layout: fixed; font-size: 14px; }
 .games .t { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .games .s { font-variant-numeric: tabular-nums; }
 .games .lead { font-weight: 700; color: var(--good); }
-#opps .st { color: var(--muted); font-size: 12px; }
 footer { margin-top: 18px; font-size: 13px; color: var(--muted); }
 footer a { color: var(--muted); }
 </style>
@@ -158,8 +157,6 @@ footer a { color: var(--muted); }
 <script src="data/league.js" onerror="void 0"></script>
 <script src="data/matchup.js" onerror="void 0"></script>
 <script src="data/standings.js" onerror="void 0"></script>
-<script src="data/schedule.js" onerror="void 0"></script>
-<script src="data/opponent-stats.js" onerror="void 0"></script>
 
 <div class="wrap">
   <header>
@@ -185,19 +182,6 @@ footer a { color: var(--muted); }
   </section>
 
   <section id="mine" aria-labelledby="minetitle"></section>
-
-  <section id="oppsec" aria-labelledby="opptitle">
-    <div class="sechd">
-      <h2 id="opptitle">Your players' opponents</h2>
-      <label class="field" for="oppview">Show <select id="oppview">
-        <option value="week">Your games left this week</option>
-        <option value="teams">What every team gives up</option>
-      </select></label>
-    </div>
-    <div class="tablewrap"><table id="opps"></table></div>
-    <div class="legend"><span><span class="key" style="background:var(--win-g)"></span>Gives up the most (easiest 3)</span><span><span class="key" style="background:var(--win-p)"></span>Gives up the least (toughest 3)</span></div>
-    <p class="hint" id="oppnote"></p>
-  </section>
 
   <footer>Data from ESPN league 1306956773. This week's scores update live while the page is open; rosters and player stats sync every hour. Looking for player rankings and free agents? <a href="players.html">Open the player tool</a>.</footer>
 </div>
@@ -466,77 +450,10 @@ footer a { color: var(--muted); }
     $("theme").onclick = () => { root.dataset.theme = root.dataset.theme === "light" ? "dark" : "light"; try { localStorage.setItem("lcb:theme", root.dataset.theme); } catch (e) { /* storage unavailable */ } label(); };
     $("refresh").onclick = async (e) => {
       e.target.disabled = true; e.target.textContent = "Refreshing…";
-      const files = ["players", "my-team", "league", "matchup", "standings", "schedule", "opponent-stats"].map((f) => `data/${f}.js`);
+      const files = ["players", "my-team", "league", "matchup", "standings"].map((f) => `data/${f}.js`);
       await Promise.all(files.map((f) => fetch(f, { cache: "reload" }).catch(() => null)));
       location.reload();
     };
-  }
-
-  // ---- Your players' opponents: what each NBA team gives up per game, from ESPN box scores ----
-  const OS = window.OPPONENT_STATS;
-  const SCH = window.SCHEDULE;
-  function oppTable() {
-    if (!OS || !OS.teams || !Object.keys(OS.teams).length) {
-      $("opps").innerHTML = "";
-      $("oppnote").textContent = "Opponent stats appear here after the next hourly ESPN sync.";
-      return;
-    }
-    // Per-game numbers every team allows, in the league's categories.
-    const allowed = {};
-    for (const [t, v] of Object.entries(OS.teams)) {
-      const a = v.allowed, g = v.gp || 1;
-      allowed[t] = { gp: v.gp, "FG%": a.fga ? a.fgm / a.fga : null, "FT%": a.fta ? a.ftm / a.fta : null, "3P%": a.tpa ? a.tpm / a.tpa : null,
-        REB: a.reb / g, AST: a.ast / g, "A/TO": a.to ? a.ast / a.to : null, STL: a.stl / g, BLK: a.blk / g, PTS: a.pts / g };
-    }
-    const teamsList = Object.keys(allowed);
-    // Rank 1 = gives up the most, which is the best matchup for your players in every category.
-    const rank = {};
-    for (const c of CATS) {
-      const vals = teamsList.map((t) => allowed[t][c]).filter((v) => typeof v === "number");
-      rank[c] = Object.fromEntries(teamsList.map((t) => [t, typeof allowed[t][c] === "number" ? 1 + vals.filter((x) => x > allowed[t][c]).length : null]));
-      rank[c].count = vals.length;
-    }
-    const starAvg = (t) => {
-      const r = [...BUILD].map((c) => rank[c][t]).filter(Boolean);
-      return r.length ? r.reduce((a, b) => a + b, 0) / r.length : null;
-    };
-    const cells = (t) => CATS.map((c) => {
-      const v = allowed[t]?.[c], r = rank[c][t];
-      return `<td class="cat" style="${shade(r, rank[c].count)}" title="${r ? ord(r) + " most given up" : ""}">${fmt(c, v, 1)}</td>`;
-    }).join("");
-    const catHead = CATS.map((c) => `<th class="${BUILD.has(c) ? "build" : ""}">${esc(c)}</th>`).join("");
-    const starCell = (t) => { const a = starAvg(t); return `<td class="pow" title="Average rank in your ★ categories (1 = easiest)">${a ? a.toFixed(1) : "–"}</td>`; };
-    const gpRange = teamsList.map((t) => allowed[t].gp);
-    const sample = `${Math.min(...gpRange)}–${Math.max(...gpRange)} games per team`;
-    const view = $("oppview").value;
-
-    if (view === "teams") {
-      const rows = teamsList.sort((a, b) => (starAvg(a) ?? 99) - (starAvg(b) ?? 99));
-      $("opps").innerHTML = `<thead><tr><th>Team</th><th>GP</th>${catHead}<th title="Average rank in your ★ categories">★ rank</th></tr></thead><tbody>` +
-        rows.map((t) => `<tr><td>${esc(t)}</td><td class="rec">${allowed[t].gp}</td>${cells(t)}${starCell(t)}</tr>`).join("") + "</tbody>";
-      $("oppnote").textContent = `Per game, what opponents have put up against each NBA team this season (${sample}). Sorted by the easiest matchups for your ★ categories. Early-season numbers move a lot.`;
-      return;
-    }
-
-    // Your remaining games this matchup week (US dates, Monday to Sunday).
-    const today = new Date().toLocaleDateString("en-CA", { timeZone: "America/New_York" });
-    const d0 = new Date(today + "T12:00:00Z");
-    const sunday = new Date(d0.getTime() + ((7 - d0.getUTCDay()) % 7) * 864e5).toISOString().slice(0, 10);
-    const day = (iso) => new Date(iso + "T12:00:00Z").toLocaleDateString(undefined, { weekday: "short", day: "numeric", timeZone: "UTC" });
-    const rows = [];
-    for (const pl of MT.players) {
-      const p = byName[pl.name]; if (!p) continue;
-      for (const g of (SCH?.teams?.[p.team] || [])) {
-        if (g.date < today || g.date > sunday) continue;
-        rows.push({ date: g.date, name: pl.name, inj: p.inj, team: p.team, opp: g.opp.replace("@", ""), at: g.opp.startsWith("@") });
-      }
-    }
-    rows.sort((a, b) => a.date.localeCompare(b.date) || (starAvg(a.opp) ?? 99) - (starAvg(b.opp) ?? 99));
-    $("opps").innerHTML = `<thead><tr><th>Player</th><th>Day</th><th>Opp</th>${catHead}<th title="Average rank in your ★ categories">★ rank</th></tr></thead><tbody>` +
-      (rows.length ? rows.map((r) => `<tr><td title="${esc(r.name)}">${esc(r.name)}${r.inj ? ` <span class="st">${esc(r.inj.replace(/_/g, " ").toLowerCase())}</span>` : ""}</td>` +
-        `<td class="rec">${esc(day(r.date))}</td><td>${r.at ? "@" : ""}${esc(r.opp)}</td>${allowed[r.opp] ? cells(r.opp) + starCell(r.opp) : `<td class="na" colspan="${CATS.length + 1}">no games yet</td>`}</tr>`).join("")
-        : `<tr><td colspan="${CATS.length + 4}" class="na">No games left this week.</td></tr>`) + "</tbody>";
-    $("oppnote").textContent = `Each row is one of your games left this week and what that opponent gives up per game (${sample}). Green = one of the 3 teams that give up the most in that category. ★ rank is the opponent's average rank in your ★ categories, so lower is an easier matchup. Early-season numbers move a lot.`;
   }
 
   function render() {
@@ -653,9 +570,6 @@ footer a { color: var(--muted); }
   render();
   $("boxweek").onchange = (e) => { boxState.week = Number(e.target.value); renderBoxes(); };
   renderBoxes();
-  $("oppview").value = store.get("oppview", "week");
-  $("oppview").onchange = (e) => { store.set("oppview", e.target.value); oppTable(); };
-  oppTable();
   startLive();
 })();
 </script>
