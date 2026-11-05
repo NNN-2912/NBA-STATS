@@ -9,7 +9,6 @@ on:
       - scripts/fetch-espn.mjs
       - scripts/fetch-league.mjs
       - scripts/fetch-schedule.mjs
-      - scripts/fetch-opponent-stats.mjs
       - .github/workflows/update-data.yml
 
 permissions:
@@ -32,9 +31,6 @@ jobs:
       - name: Fetch NBA schedule
         continue-on-error: true
         run: node scripts/fetch-schedule.mjs 2027
-      - name: Fetch opponent stats from box scores
-        continue-on-error: true
-        run: node scripts/fetch-opponent-stats.mjs
       - name: Fetch league rosters
         # Keeps going if the league can't be read, so player stats still update.
         continue-on-error: true
@@ -50,7 +46,6 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add data/players.js data/league.js data/my-team.js data/matchup.js data/standings.js
           [ -f data/schedule.js ] && git add data/schedule.js
-          [ -f data/opponent-stats.js ] && git add data/opponent-stats.js
           if git diff --cached --quiet; then
             echo "No changes"
           else
