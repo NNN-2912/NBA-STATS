@@ -479,10 +479,11 @@ footer a { color: var(--muted); }
   // minute or so during games, so asking every second would just repeat the same answer and
   // risk getting blocked. Instead: every 15 s while stats are moving, slowing to 2 min when
   // nothing changes, paused while the tab is hidden. The "updated Ns ago" clock ticks every second.
-  // mMatchupScore + mLiveScoring filtered to this week is about 25 KB per check (mScoreboard
-  // would add every roster, ~45 KB). Team names come from one mTeam request per page load.
+  // ESPN only sends the per-category numbers (scoreByStat) when mScoreboard is included;
+  // mMatchupScore alone or with mLiveScoring gives the W-L-T but no stats. Filtered to this
+  // week it is about 45 KB gzipped per check. Team names come from one mTeam request per page load.
   const LIVE_BASE = "https://lm-api-reads.fantasy.espn.com/apis/v3/games/fba/seasons/2027/segments/0/leagues/1306956773";
-  const LIVE_URL = LIVE_BASE + "?view=mMatchupScore&view=mLiveScoring";
+  const LIVE_URL = LIVE_BASE + "?view=mMatchupScore&view=mScoreboard";
   const MY_ID = 24;
   const STAT_IDS = { "FG%": 19, "FT%": 20, "3P%": 21, REB: 6, AST: 3, "A/TO": 35, STL: 2, BLK: 1, PTS: 0 };
   const FAST = 15e3, SLOW = 120e3;
@@ -534,6 +535,8 @@ footer a { color: var(--muted); }
       if (now && now !== S.week) { LIVE.ok = false; LIVE.msg = `Week ${now} has started. Tap Refresh data.`; showLive(); return; }
       const games = liveGames(data, S.week, LIVE.names);
       if (!games.length) throw new Error("no matchups");
+      // Never swap real numbers for blanks: if ESPN leaves the category stats out, keep the hourly sync.
+      if (!games.some((g) => Object.keys(g.home.stats).length)) throw new Error("no category stats");
       const sig = JSON.stringify(games);
       const changed = sig !== LIVE.sig;
       LIVE.sig = sig; LIVE.ok = true; LIVE.fails = 0; LIVE.at = Date.now(); LIVE.msg = "";
