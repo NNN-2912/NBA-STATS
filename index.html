@@ -41,6 +41,12 @@ h2 { font: 700 22px/1.1 var(--font-display); text-transform: uppercase; letter-s
 .hint { font-size: 13px; }
 .info { font: 500 13px/1.4 var(--font-data); color: var(--muted); text-align: right; }
 .info a { color: var(--muted); }
+.live { display: inline-flex; align-items: center; gap: 6px; font-variant-numeric: tabular-nums; }
+.live i { width: 8px; height: 8px; border-radius: 50%; background: var(--muted); flex: none; }
+.live.on i { background: var(--good); animation: pulse 2s ease-in-out infinite; }
+.live.err i { background: var(--bad); }
+@keyframes pulse { 50% { opacity: 0.35; } }
+@media (prefers-reduced-motion: reduce) { .live.on i { animation: none; } }
 .btn { font: 600 13px/1 var(--font-data); color: var(--ink); background: var(--surface); border: 1px solid var(--line); border-radius: 6px; padding: 7px 10px; cursor: pointer; }
 .btn:hover { border-color: var(--accent); }
 section { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 16px; margin-top: 16px; }
@@ -193,7 +199,7 @@ footer a { color: var(--muted); }
     <p class="hint" id="oppnote"></p>
   </section>
 
-  <footer>Data from ESPN league 1306956773, synced every hour. Looking for player rankings and free agents? <a href="players.html">Open the player tool</a>.</footer>
+  <footer>Data from ESPN league 1306956773. This week's scores update live while the page is open; rosters and player stats sync every hour. Looking for player rankings and free agents? <a href="players.html">Open the player tool</a>.</footer>
 </div>
 
 <script>
@@ -263,7 +269,7 @@ footer a { color: var(--muted); }
   if (finished.length) VIEWS.push({ id: "avg", label: finished.length > 1 ? `Average week so far (weeks ${finished[0].week}–${finished[finished.length - 1].week})` : `Average week so far (week ${finished[0].week})`, dec: finished.length > 1 ? 1 : 0,
     note: "Each team's average category totals per matchup week, finished weeks only. Bye weeks are left out.", get: () => avgStats(finished) });
   for (const w of [...weeks].reverse()) VIEWS.push({ id: "w" + w.week, label: `Week ${w.week}${w.week === S.week ? " (live, in progress)" : ""}`, dec: 0,
-    note: w.week === S.week ? "Category totals so far this week, from ESPN. Updates every hour." : `Final category totals for week ${w.week}, from ESPN.`, get: () => weekStats(w) });
+    note: w.week === S.week ? "Category totals so far this week, live from ESPN while this page is open." : `Final category totals for week ${w.week}, from ESPN.`, get: () => weekStats(w) });
   VIEWS.push({ id: "roster", label: "Current rosters (per game)", dec: 1,
     note: "What each team's current 13 players add up to per game, from this season's averages (ESPN projections for anyone yet to play). Reflects trades and adds right away.", get: rosterStats });
   if (!weeks.length) VIEWS[VIEWS.length - 1].note += " Weekly ESPN totals for every team appear here after the next hourly sync.";
@@ -409,7 +415,7 @@ footer a { color: var(--muted); }
     });
     return [{ week: S.week, matchups: ms }];
   }
-  const BW = boxWeeks();
+  let BW = boxWeeks();
   const boxState = { week: BW.some((w) => w.week === S.week) ? S.week : (BW[BW.length - 1] || {}).week };
 
   function renderBoxes() {
@@ -447,13 +453,13 @@ footer a { color: var(--muted); }
     const playing = new Set(games.flatMap((m) => [m.home.name, m.away.name]));
     const bye = names.filter((n) => !playing.has(n));
     $("boxes").innerHTML = `<div class="mgrid">${games.map(box).join("")}</div>` +
-      `<p class="byes">${w.week === S.week ? "Live, updates every hour. " : "Final. "}Your matchup is first. Red = top team winning the category, green = bottom team (you, in your matchup).${bye.length ? ` Bye: ${esc(bye.join(", "))}.` : ""}${weeks.length ? "" : " Other teams' category numbers appear after the next ESPN sync."}</p>`;
+      `<p class="byes">${w.week === S.week ? (LIVE.ok ? "Live from ESPN, checked every few seconds while this page is open. " : "Live, updates every hour. ") : "Final. "}Your matchup is first. Red = top team winning the category, green = bottom team (you, in your matchup).${bye.length ? ` Bye: ${esc(bye.join(", "))}.` : ""}${weeks.length ? "" : " Other teams' category numbers appear after the next ESPN sync."}</p>`;
   }
 
   function renderInfo() {
     const when = S.updated || (MU && MU.updated) || P.updated;
     const t = when ? new Date(when).toLocaleString(undefined, { day: "numeric", month: "short", hour: "numeric", minute: "2-digit" }) : "unknown";
-    $("info").innerHTML = `<span>ESPN sync ${esc(t)}</span><button type="button" class="btn" id="theme"></button><button type="button" class="btn" id="refresh">Refresh data</button>`;
+    $("info").innerHTML = `<span class="live" id="live" hidden><i></i><span></span></span><span id="synced">ESPN sync ${esc(t)}</span><button type="button" class="btn" id="theme"></button><button type="button" class="btn" id="refresh">Refresh data</button>`;
     const root = document.documentElement;
     const label = () => { $("theme").textContent = root.dataset.theme === "light" ? "Dark mode" : "Light mode"; };
     label();
@@ -549,6 +555,100 @@ footer a { color: var(--muted); }
     if (tr) { state.open = state.open === tr.dataset.team ? null : tr.dataset.team; render(); }
   });
 
+
+  // ---- Live scores: poll ESPN's league API straight from the browser ----
+  // The league is public and ESPN allows this site's origin, so this week's box scores can
+  // update without waiting for the hourly GitHub sync. ESPN only refreshes fantasy stats every
+  // minute or so during games, so asking every second would just repeat the same answer and
+  // risk getting blocked. Instead: every 15 s while stats are moving, slowing to 2 min when
+  // nothing changes, paused while the tab is hidden. The "updated Ns ago" clock ticks every second.
+  // mMatchupScore + mLiveScoring filtered to this week is about 25 KB per check (mScoreboard
+  // would add every roster, ~45 KB). Team names come from one mTeam request per page load.
+  const LIVE_BASE = "https://lm-api-reads.fantasy.espn.com/apis/v3/games/fba/seasons/2027/segments/0/leagues/1306956773";
+  const LIVE_URL = LIVE_BASE + "?view=mMatchupScore&view=mLiveScoring";
+  const MY_ID = 24;
+  const STAT_IDS = { "FG%": 19, "FT%": 20, "3P%": 21, REB: 6, AST: 3, "A/TO": 35, STL: 2, BLK: 1, PTS: 0 };
+  const FAST = 15e3, SLOW = 120e3;
+  const LIVE = { ok: false, at: 0, wait: FAST, timer: 0, sig: "", fails: 0, msg: "", names: null };
+  const espnGet = async (url, filter) => {
+    const res = await fetch(url, { credentials: "omit", cache: "no-store", headers: filter ? { "x-fantasy-filter": JSON.stringify(filter) } : {} });
+    if (!res.ok) throw new Error("ESPN " + res.status);
+    return { res, data: await res.json() };
+  };
+
+  // Same shape scripts/fetch-league.mjs writes to data/standings.js.
+  const teamNames = (data) => Object.fromEntries((data.teams || []).map((t) => [t.id, (t.name || `${t.location || ""} ${t.nickname || ""}`).trim() || `Team ${t.id}`]));
+  function liveGames(data, week, name) {
+    const side = (s) => {
+      const sc = s.cumulativeScoreLive || s.cumulativeScore || {};
+      const stats = {};
+      for (const c of CATS) { const v = sc.scoreByStat?.[STAT_IDS[c]]?.score; if (typeof v === "number") stats[c] = v; }
+      return { name: name[s.teamId] || `Team ${s.teamId}`, mine: s.teamId === MY_ID, wins: sc.wins ?? 0, losses: sc.losses ?? 0, ties: sc.ties ?? 0, stats };
+    };
+    return (data.schedule || []).filter((m) => m.matchupPeriodId === week && m.home && m.away)
+      .map((m) => ({ home: side(m.home), away: side(m.away) }))
+      .sort((a, b) => (b.home.mine || b.away.mine) - (a.home.mine || a.away.mine));
+  }
+
+  function applyLive(games) {
+    S.matchups = games;
+    const wk = (S.weeks || []).find((w) => w.week === S.week);
+    if (wk) wk.matchups = games; // the "Week N (live)" view and box scores read this object
+    const m = games.find((g) => g.home.mine || g.away.mine);
+    if (MU && m) {
+      const [us, them] = m.home.mine ? [m.home, m.away] : [m.away, m.home];
+      MU.score = { wins: us.wins, losses: us.losses, ties: us.ties };
+      for (const c of MU.cats || []) { if (c.label in us.stats) c.mine = us.stats[c.label]; if (c.label in them.stats) c.theirs = them.stats[c.label]; }
+    }
+    BW = boxWeeks();
+    render();
+    renderBoxes();
+  }
+
+  async function poll() {
+    clearTimeout(LIVE.timer);
+    if (document.hidden) return; // picked up again by visibilitychange
+    try {
+      if (!LIVE.names) LIVE.names = teamNames((await espnGet(LIVE_BASE + "?view=mTeam")).data);
+      const { res, data } = await espnGet(LIVE_URL, { schedule: { filterMatchupPeriodIds: { value: [S.week] } } });
+      // If ESPN ever asks clients to slow down (seconds), never poll faster than it says.
+      const hint = Math.min(Number(res.headers.get("Polling-Interval")) * 1000 || 0, 10 * 60e3);
+      const now = data.status?.currentMatchupPeriod;
+      if (now && now !== S.week) { LIVE.ok = false; LIVE.msg = `Week ${now} has started. Tap Refresh data.`; showLive(); return; }
+      const games = liveGames(data, S.week, LIVE.names);
+      if (!games.length) throw new Error("no matchups");
+      const sig = JSON.stringify(games);
+      const changed = sig !== LIVE.sig;
+      LIVE.sig = sig; LIVE.ok = true; LIVE.fails = 0; LIVE.at = Date.now(); LIVE.msg = "";
+      if (changed) applyLive(games);
+      LIVE.wait = Math.max(hint, changed ? FAST : Math.min(LIVE.wait * 2, SLOW));
+    } catch (err) {
+      LIVE.fails++;
+      LIVE.msg = LIVE.ok ? "" : "Live scores unavailable, showing the hourly sync.";
+      LIVE.wait = Math.min(FAST * 2 ** LIVE.fails, 5 * 60e3);
+    }
+    showLive();
+    LIVE.timer = setTimeout(poll, LIVE.wait);
+  }
+
+  function showLive() {
+    const el = $("live"); if (!el) return;
+    el.hidden = false;
+    const ago = LIVE.at ? Math.max(0, Math.round((Date.now() - LIVE.at) / 1000)) : null;
+    const txt = LIVE.msg || (ago == null ? "Connecting to ESPN…" : ago < 60 ? `Live · updated ${ago}s ago` : `Live · updated ${Math.floor(ago / 60)}m ago`);
+    el.className = "live" + (LIVE.msg && !LIVE.ok ? " err" : LIVE.ok && !document.hidden ? " on" : "");
+    el.lastElementChild.textContent = txt;
+    el.title = LIVE.ok ? `This week's scores come straight from ESPN. Next check in about ${Math.round(LIVE.wait / 1000)}s.` : "";
+    const sy = $("synced"); if (sy) sy.hidden = LIVE.ok;
+  }
+
+  function startLive() {
+    if (!S.week || !(S.matchups || []).length || !window.fetch) return;
+    setInterval(showLive, 1000);
+    document.addEventListener("visibilitychange", () => { if (!document.hidden) { LIVE.wait = FAST; poll(); } else showLive(); });
+    poll();
+  }
+
   renderInfo();
   render();
   $("boxweek").onchange = (e) => { boxState.week = Number(e.target.value); renderBoxes(); };
@@ -556,5 +656,6 @@ footer a { color: var(--muted); }
   $("oppview").value = store.get("oppview", "week");
   $("oppview").onchange = (e) => { store.set("oppview", e.target.value); oppTable(); };
   oppTable();
+  startLive();
 })();
 </script>
