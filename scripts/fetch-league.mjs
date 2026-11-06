@@ -195,7 +195,15 @@ function standings(data) {
     const games = weekGames(w);
     if (games.length) weeks.push({ week: w, matchups: games });
   }
-  return { updated: new Date().toISOString(), week, teams, matchups, weeks };
+  // Our whole season: who we play each week ("BYE" when we sit out), past and future.
+  const periods = [...new Set((data.schedule || []).map((m) => m.matchupPeriodId))].filter(Boolean).sort((a, b) => a - b);
+  const mySchedule = periods.map((w) => {
+    const g = (data.schedule || []).find((m) => m.matchupPeriodId === w && (m.home?.teamId === MY_TEAM_ID || m.away?.teamId === MY_TEAM_ID));
+    if (!g) return { week: w, opponent: "BYE" };
+    const opp = g.home?.teamId === MY_TEAM_ID ? g.away : g.home;
+    return { week: w, opponent: opp ? teamName(byId[opp.teamId] || { id: opp.teamId }) : "BYE", playoff: g.playoffTierType && g.playoffTierType !== "NONE" ? true : undefined };
+  });
+  return { updated: new Date().toISOString(), week, teams, matchups, weeks, mySchedule };
 }
 
 // The league's scored stat ids, in the dashboard's category order.
