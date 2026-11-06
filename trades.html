@@ -1,0 +1,414 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<script>try { if (localStorage.getItem("lcb:theme") === "light") document.documentElement.dataset.theme = "light"; } catch (e) { /* storage unavailable */ }</script>
+<title>Trade Finder</title>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=Barlow+Semi+Condensed:wght@400;500;600&family=Barlow:wght@400;500;600&display=swap">
+<style>
+/* One column: what your team needs, the search settings, then the ranked list of trades. */
+:root {
+  --bg: #f3f5f9; --surface: #ffffff; --surface-2: #eaeef5; --ink: #121a2b; --muted: #5a6478; --line: #d9dfe9;
+  --accent: #1f4fd1; --accent-ink: #ffffff; --good: #109a4c; --bad: #d8382c; --star: #e09b00;
+  --font-display: "Barlow Condensed", "Arial Narrow", system-ui, sans-serif;
+  --font-body: "Barlow", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-data: "Barlow Semi Condensed", "Barlow", system-ui, sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0c111b; --surface: #141b29; --surface-2: #1b2435; --ink: #e6ebf4; --muted: #95a1b7; --line: #283246;
+    --accent: #7aa2ff; --accent-ink: #0c111b; --good: #34d07f; --bad: #ff6a5c; --star: #ffc23d;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0c111b; --surface: #141b29; --surface-2: #1b2435; --ink: #e6ebf4; --muted: #95a1b7; --line: #283246;
+  --accent: #7aa2ff; --accent-ink: #0c111b; --good: #34d07f; --bad: #ff6a5c; --star: #ffc23d;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html, body { background: var(--bg); color: var(--ink); }
+body { margin: 0; font: 15px/1.45 var(--font-body); }
+.wrap { max-width: 1180px; margin: 0 auto; padding: 0 max(16px, env(safe-area-inset-right, 0px)) 48px max(16px, env(safe-area-inset-left, 0px)); }
+header { padding-block: 18px 4px; display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-end; gap: 10px 20px; }
+h1 { font: 700 clamp(30px, 5vw, 44px)/0.95 var(--font-display); text-transform: uppercase; margin: 0; letter-spacing: 0.01em; }
+h1 span { color: var(--accent); }
+h2 { font: 700 22px/1.1 var(--font-display); text-transform: uppercase; letter-spacing: 0.02em; margin: 0 0 4px; }
+.sub, .hint { color: var(--muted); margin: 6px 0 0; max-width: 72ch; }
+.hint { font-size: 13px; }
+a { color: var(--accent); }
+.info { font: 500 13px/1.4 var(--font-data); color: var(--muted); text-align: right; display: flex; flex-wrap: wrap; gap: 6px 10px; align-items: center; justify-content: flex-end; }
+.btn { font: 600 13px/1 var(--font-data); color: var(--ink); background: var(--surface); border: 1px solid var(--line); border-radius: 6px; padding: 8px 11px; cursor: pointer; }
+.btn:hover { border-color: var(--accent); }
+.btn.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+button:focus-visible, select:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+section { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 16px; margin-top: 16px; }
+
+/* What your team needs */
+.cats { display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 8px; margin-top: 12px; }
+.cat { border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; background: transparent; color: var(--ink); text-align: left; cursor: pointer; font: inherit; }
+.cat .c { font: 600 13px/1 var(--font-data); color: var(--muted); }
+.cat .c, .cat .v, .cat .s { display: block; }
+.cat .v { font: 700 24px/1.15 var(--font-display); font-variant-numeric: tabular-nums; }
+.cat .s { font: 600 11px/1 var(--font-data); text-transform: uppercase; letter-spacing: 0.05em; }
+.cat.good .v, .cat.good .s { color: var(--good); }
+.cat.bad .v, .cat.bad .s { color: var(--bad); }
+.cat.ok .s { color: var(--muted); }
+.cat[aria-pressed="false"] { opacity: 0.45; border-style: dashed; }
+.cat[aria-pressed="false"] .s { color: var(--muted); }
+
+/* Settings */
+.row { display: flex; flex-wrap: wrap; gap: 10px 18px; align-items: center; margin-top: 12px; }
+.field { display: flex; align-items: center; gap: 6px; font: 600 12px/1 var(--font-data); text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); }
+select { font: 500 15px/1.2 var(--font-body); color: var(--ink); background: var(--surface); border: 1px solid var(--line); border-radius: 6px; padding: 6px 8px; min-height: 36px; max-width: 100%; }
+.keep { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.pchip { font: 600 13px/1 var(--font-data); border: 1px solid var(--line); background: transparent; color: var(--ink); border-radius: 999px; padding: 7px 11px; cursor: pointer; }
+.pchip small { color: var(--muted); font-weight: 500; margin-left: 4px; }
+.pchip[aria-pressed="true"] { border-color: var(--star); background: color-mix(in srgb, var(--star) 16%, transparent); }
+.pchip[aria-pressed="true"]::before { content: "🔒 "; }
+.pchip.out { opacity: 0.5; }
+
+/* Results */
+.status { font: 500 14px/1.4 var(--font-data); color: var(--muted); margin-top: 10px; min-height: 1.4em; }
+.tablewrap { overflow-x: auto; margin: 10px -16px 0; padding: 0 16px; }
+table { border-collapse: separate; border-spacing: 0; width: 100%; min-width: 860px; font: 500 14px/1.3 var(--font-data); font-variant-numeric: tabular-nums; }
+th, td { padding: 9px 8px; text-align: left; border-bottom: 1px solid var(--line); vertical-align: top; }
+th { font: 600 12px/1.1 var(--font-data); text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); }
+td.gain { font: 700 20px/1 var(--font-display); color: var(--good); white-space: nowrap; }
+td.gain small { display: block; font: 500 11px/1.2 var(--font-data); color: var(--muted); }
+.pl { display: block; white-space: nowrap; }
+.pl small { color: var(--muted); }
+.inj { font: 700 10px/1 var(--font-data); color: var(--bad); border: 1px solid currentColor; border-radius: 3px; padding: 1px 3px; margin-left: 4px; vertical-align: 1px; }
+.pill { display: inline-block; font: 600 12px/1 var(--font-data); border-radius: 999px; padding: 4px 7px; margin: 0 4px 4px 0; white-space: nowrap; }
+.pill.up { background: color-mix(in srgb, var(--good) 20%, transparent); color: var(--good); }
+.pill.dn { background: color-mix(in srgb, var(--bad) 18%, transparent); color: var(--bad); }
+.them { font: 600 12px/1.2 var(--font-data); white-space: nowrap; }
+.them.yes { color: var(--good); } .them.meh { color: var(--muted); }
+.empty { color: var(--muted); padding: 18px 0; }
+details p, details li { color: var(--muted); font-size: 14px; max-width: 72ch; }
+details summary { cursor: pointer; font-weight: 600; }
+footer { color: var(--muted); font-size: 13px; margin-top: 18px; }
+</style>
+
+<div class="wrap">
+  <header>
+    <div>
+      <h1>Trade <span>Finder</span></h1>
+      <p class="sub">Every 1-for-1 and 2-for-2 trade with every team in the league, ranked by how many more categories a week it should win you. Only trades the other manager has a reason to accept are shown.</p>
+    </div>
+    <div class="info" id="info"></div>
+  </header>
+
+  <section aria-labelledby="needs">
+    <h2 id="needs">What your team needs</h2>
+    <p class="hint" id="needsHint">Your best 10 healthy players, category by category, against the average team in the league. Tap a category to punt it: the search will ignore it.</p>
+    <div class="cats" id="cats"></div>
+  </section>
+
+  <section aria-labelledby="settings">
+    <h2 id="settings">Search settings</h2>
+    <div class="row">
+      <label class="field" for="size">Trade size
+        <select id="size">
+          <option value="1">1-for-1 only</option>
+          <option value="2" selected>Up to 2-for-2</option>
+        </select>
+      </label>
+      <label class="field" for="fair">Show
+        <select id="fair">
+          <option value="fair" selected>Fair trades</option>
+          <option value="win">Only trades that help them too</option>
+        </select>
+      </label>
+      <label class="field" for="weak">Weak categories
+        <select id="weak">
+          <option value="protect" selected>Must not get worse</option>
+          <option value="any">Can get worse</option>
+        </select>
+      </label>
+      <label class="field" for="team">Team
+        <select id="team"><option value="">All teams</option></select>
+      </label>
+      <label class="field" for="src">Stats
+        <select id="src">
+          <option value="blend" selected>This season + projections</option>
+          <option value="season">This season only</option>
+          <option value="proj">Projections only</option>
+        </select>
+      </label>
+      <button type="button" class="btn primary" id="go">Find trades</button>
+    </div>
+    <p class="hint">Players you won't trade: tap to lock them.</p>
+    <div class="keep" id="keep"></div>
+    <p class="status" id="status" role="status"></p>
+  </section>
+
+  <section aria-labelledby="results">
+    <h2 id="results">Best trades</h2>
+    <div class="tablewrap">
+      <table>
+        <thead><tr><th>Gain</th><th>Trade with</th><th>You get</th><th>You give</th><th>Your categories</th><th>For them</th></tr></thead>
+        <tbody id="body"><tr><td colspan="6" class="empty">Searching…</td></tr></tbody>
+      </table>
+    </div>
+    <details style="margin-top:14px">
+      <summary>How trades are scored</summary>
+      <p><b>Gain</b> is how many more of the 9 categories you would expect to win in an average week, against every team in the league, after the trade. For example, +0.30 means about one extra category won every three weeks. Each team is judged on its best 10 healthy players.</p>
+      <p><b>Stats:</b> "This season + projections" mixes ESPN's season projection with this season's real numbers, trusting the real numbers more as games are played (half and half at about 10 games).</p>
+      <p><b>Weak categories</b> are the ones marked "Need" above. With "Must not get worse", a trade is only shown if none of them drops by more than half a point.</p>
+      <p><b>Fair trades</b> are ones where the value the other manager receives is close to what they give up, and their own expected category wins don't drop much. <b>Only trades that help them too</b> keeps the ones where their team also improves, which are the easiest to get accepted.</p>
+      <p>Players who are out or on IR are left out of both sides.</p>
+    </details>
+  </section>
+
+  <footer>Rosters and stats sync from ESPN league 1306956773 every hour. <a href="./">League view</a> · <a href="players.html">Player tool</a></footer>
+</div>
+
+<script src="data/players.js"></script>
+<script src="data/my-team.js"></script>
+<script src="data/league.js"></script>
+<script>
+(function () {
+  "use strict";
+  const CATS = [
+    { k: "fg", label: "FG%", num: "fgm", den: "fga" },
+    { k: "ft", label: "FT%", num: "ftm", den: "fta" },
+    { k: "tp", label: "3P%", num: "tpm", den: "tpa" },
+    { k: "reb", label: "REB" },
+    { k: "ast", label: "AST" },
+    { k: "ato", label: "A/TO", num: "ast", den: "to" },
+    { k: "stl", label: "STL" },
+    { k: "blk", label: "BLK" },
+    { k: "pts", label: "PTS" },
+  ];
+  const STATS = ["pts", "reb", "ast", "stl", "blk", "to", "fgm", "fga", "ftm", "fta", "tpm", "tpa", "min"];
+  const POOL = 169; // 13 teams x 13 roster spots
+  const SIG = 2.5; // week-to-week noise in a team's category total, in z units
+  const OUT = new Set(["OUT", "INJURY_RESERVE", "SUSPENSION"]);
+
+  const $ = (id) => document.getElementById(id);
+  const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+  const store = {
+    get(k, d) { try { const v = localStorage.getItem("tf:" + k); return v == null ? d : JSON.parse(v); } catch (e) { return d; } },
+    set(k, v) { try { localStorage.setItem("tf:" + k, JSON.stringify(v)); } catch (e) { /* storage unavailable */ } },
+  };
+
+  const DATA = window.PLAYER_DATA, LEAGUE = window.LEAGUE, MINE = window.MY_TEAM;
+  if (!DATA || !LEAGUE || !MINE) { $("body").innerHTML = `<tr><td colspan="6" class="empty">The league data hasn't synced yet. Try again after the next hourly update.</td></tr>`; return; }
+  const byName = Object.fromEntries(DATA.players.map((p) => [p.name, p]));
+  const myNames = MINE.players.map((p) => p.name);
+  const onIR = new Set(MINE.players.filter((p) => p.role === "IR").map((p) => p.name));
+
+  const state = {
+    size: 2, fair: "fair", team: "", src: "blend", weak: "protect",
+    off: new Set(store.get("off", [])), keep: new Set(store.get("keep", [])),
+  };
+
+  // ---------- per-game stat lines ----------
+  function line(p) {
+    const pr = p.proj, se = p.season;
+    if (state.src === "proj") return pr || null;
+    if (state.src === "season") return se && se.gp ? se : null;
+    if (pr && se && se.gp) {
+      const w = se.gp / (se.gp + 10);
+      const out = { gp: se.gp };
+      for (const k of STATS) out[k] = w * (se[k] || 0) + (1 - w) * (pr[k] || 0);
+      if (pr.tpa == null) out.tpa = w * (se.tpa || 0) + (1 - w) * (pr.tpm || 0) / 0.36;
+      return out;
+    }
+    return (se && se.gp ? se : pr) || null;
+  }
+
+  // ---------- z-scores against the rostered pool ----------
+  function zScores() {
+    const rows = [];
+    for (const p of DATA.players) { const s = line(p); if (s && (s.fga || s.pts)) rows.push({ name: p.name, s }); }
+    const raw = (r, c, avg) => (c.num ? r.s[c.num] - avg[c.k] * r.s[c.den] : r.s[c.k] || 0);
+    const pass = (pool) => {
+      const avg = {}, dist = {};
+      for (const c of CATS) if (c.num) avg[c.k] = pool.reduce((a, r) => a + (r.s[c.num] || 0), 0) / (pool.reduce((a, r) => a + (r.s[c.den] || 0), 0) || 1);
+      for (const c of CATS) {
+        const v = pool.map((r) => raw(r, c, avg)); const m = v.reduce((a, b) => a + b, 0) / v.length;
+        dist[c.k] = { m, sd: Math.sqrt(v.reduce((a, b) => a + (b - m) ** 2, 0) / v.length) || 1 };
+      }
+      for (const r of rows) { r.z = CATS.map((c) => (raw(r, c, avg) - dist[c.k].m) / dist[c.k].sd); r.v = r.z.reduce((a, b) => a + b, 0); }
+    };
+    let pool = rows; for (let i = 0; i < 4; i++) { pass(pool); pool = [...rows].sort((a, b) => b.v - a.v).slice(0, POOL); }
+    rows.sort((a, b) => b.v - a.v).forEach((r, i) => (r.rank = i + 1));
+    return Object.fromEntries(rows.map((r) => [r.name, r]));
+  }
+
+  // ---------- team strength ----------
+  const erf = (x) => { const t = 1 / (1 + 0.3275911 * Math.abs(x)); const y = 1 - (((((1.061405429 * t - 1.453152027) * t) + 1.421413741) * t - 0.284496736) * t + 0.254829592) * t * Math.exp(-x * x); return x >= 0 ? y : -y; };
+  const Phi = (x) => 0.5 * (1 + erf(x / Math.SQRT2));
+  let Z = {}, ON = [];
+  const val = (n) => ON.reduce((a, i) => a + Z[n].z[i], 0);
+  // Once most players have games in, someone with none (or no NBA team) isn't playing.
+  const seasonStarted = DATA.players.filter((p) => p.season && p.season.gp >= 3).length > 150;
+  const playing = (p) => p.team !== "FA" && (!seasonStarted || state.src === "proj" || (p.season && p.season.gp > 0));
+  const healthy = (n) => Z[n] && !onIR.has(n) && !OUT.has((byName[n] || {}).inj) && playing(byName[n] || {});
+  function totals(names) {
+    const best = names.filter(healthy).sort((a, b) => val(b) - val(a)).slice(0, 10);
+    const t = new Array(CATS.length).fill(0);
+    for (const n of best) for (let i = 0; i < CATS.length; i++) t[i] += Z[n].z[i];
+    t.best = best;
+    return t;
+  }
+  function expWins(t, opps) {
+    let w = 0;
+    for (const o of opps) for (const i of ON) w += Phi((t[i] - o[i]) / SIG);
+    return w / opps.length;
+  }
+
+  // ---------- the search ----------
+  let runId = 0;
+  function search() {
+    const id = ++runId;
+    Z = zScores();
+    ON = CATS.map((c, i) => (state.off.has(c.k) ? -1 : i)).filter((i) => i >= 0);
+    const teams = LEAGUE.teams.map((t) => ({ name: t.name, names: t.players.filter((n) => Z[n]) }));
+    const oppT = teams.map((t) => totals(t.names));
+    const mine = myNames.filter((n) => Z[n]);
+    const myT = totals(mine);
+    const leagueAvg = CATS.map((_, i) => oppT.reduce((a, t) => a + t[i], 0) / oppT.length);
+    const weak = ON.filter((i) => myT[i] - leagueAvg[i] <= -1.5);
+    renderNeeds(myT, oppT);
+    const base = expWins(myT, oppT);
+
+    const givers = mine.filter((n) => healthy(n) && !state.keep.has(n));
+    const giveSets = givers.map((n) => [n]);
+    if (state.size > 1) for (let i = 0; i < givers.length; i++) for (let j = i + 1; j < givers.length; j++) giveSets.push([givers[i], givers[j]]);
+    const pkg = (names) => { const v = names.map(val).sort((a, b) => b - a); return v[0] + (v[1] !== undefined ? 0.6 * Math.max(0, v[1]) : 0); };
+
+    const results = [];
+    let ti = 0;
+    $("status").textContent = "Searching…";
+    const step = () => {
+      if (id !== runId) return;
+      if (ti >= teams.length) return finish();
+      const team = teams[ti];
+      if (!state.team || state.team === team.name) {
+        const others = oppT.filter((_, k) => k !== ti);
+        const theirBase = expWins(oppT[ti], others.concat([myT]));
+        const avail = team.names.filter(healthy);
+        const getSets = avail.map((n) => [n]);
+        if (state.size > 1) for (let i = 0; i < avail.length; i++) for (let j = i + 1; j < avail.length; j++) getSets.push([avail[i], avail[j]]);
+        for (const get of getSets) {
+          const getPkg = pkg(get);
+          for (const give of giveSets) {
+            if (get.length > give.length) continue;
+            if (pkg(give) < getPkg - 0.5) continue; // they must receive roughly fair value
+            const newMine = mine.filter((n) => !give.includes(n)).concat(get);
+            const newTheirs = team.names.filter((n) => !get.includes(n)).concat(give);
+            const nm = totals(newMine);
+            if (get.length > 1 && !get.every((n) => nm.best.includes(n))) continue; // skip filler players who wouldn't play for you
+            if (state.weak === "protect" && weak.some((i) => nm[i] - myT[i] < -0.5)) continue;
+            const nt = totals(newTheirs);
+            const gain = expWins(nm, oppT.map((o, k) => (k === ti ? nt : o))) - base;
+            if (gain < 0.05) continue;
+            const theirGain = expWins(nt, others.concat([nm])) - theirBase;
+            if (theirGain < (state.fair === "win" ? 0 : -0.1)) continue;
+            results.push({ team: team.name, get, give, gain, theirGain, delta: nm.map((v, i) => v - myT[i]) });
+          }
+        }
+      }
+      ti++;
+      $("status").textContent = `Searching… ${ti} of ${teams.length} teams`;
+      setTimeout(step, 0);
+    };
+    const finish = () => {
+      // Rank by your gain, with a small penalty when the other side loses out; one row per set of incoming players.
+      results.sort((a, b) => (b.gain + 0.5 * Math.min(0, b.theirGain)) - (a.gain + 0.5 * Math.min(0, a.theirGain)));
+      const seen = new Set(), rows = [];
+      for (const r of results) { const key = r.team + "|" + r.get.slice().sort().join("+"); if (seen.has(key)) continue; seen.add(key); rows.push(r); if (rows.length >= 25) break; }
+      renderResults(rows, base);
+    };
+    step();
+  }
+
+  // ---------- rendering ----------
+  function renderNeeds(myT, oppT) {
+    const avg = CATS.map((_, i) => oppT.reduce((a, t) => a + t[i], 0) / oppT.length);
+    $("cats").innerHTML = CATS.map((c, i) => {
+      const d = myT[i] - avg[i], on = !state.off.has(c.k);
+      const cls = !on ? "" : d >= 1.5 ? "good" : d <= -1.5 ? "bad" : "ok";
+      const word = !on ? "Punted" : d >= 1.5 ? "Strong" : d <= -1.5 ? "Need" : "Even";
+      return `<button type="button" class="cat ${cls}" data-cat="${c.k}" aria-pressed="${on}"><span class="c">${c.label}</span><span class="v">${d >= 0 ? "+" : ""}${d.toFixed(1)}</span><span class="s">${word}</span></button>`;
+    }).join("");
+  }
+
+  function renderKeep() {
+    $("keep").innerHTML = myNames.map((n) => {
+      const out = !healthy(n);
+      const r = Z[n] ? `#${Z[n].rank}` : "";
+      return `<button type="button" class="pchip${out ? " out" : ""}" data-name="${esc(n)}" aria-pressed="${state.keep.has(n)}"${out ? ' disabled title="Injured or on IR: not traded"' : ""}>${esc(n)}<small>${r}</small></button>`;
+    }).join("");
+  }
+
+  const player = (n) => {
+    const p = byName[n] || {}, r = Z[n];
+    return `<span class="pl">${esc(n)}${p.inj && p.inj !== "ACTIVE" ? `<span class="inj">${esc(p.inj === "DAY_TO_DAY" ? "DTD" : p.inj)}</span>` : ""} <small>${esc(p.team || "")} · #${r ? r.rank : "–"}</small></span>`;
+  };
+
+  function renderResults(rows, base) {
+    const n = rows.length;
+    $("status").textContent = n
+      ? `Your team wins about ${base.toFixed(1)} of ${ON.length} categories in an average week. Showing the ${n} best trade${n > 1 ? "s" : ""}.`
+      : "";
+    $("body").innerHTML = n ? rows.map((r) => {
+      const pills = r.delta.map((d, i) => [i, d]).filter(([i, d]) => ON.includes(i) && Math.abs(d) >= 0.6).sort((a, b) => b[1] - a[1]);
+      const up = pills.filter(([, d]) => d > 0).map(([i, d]) => `<span class="pill up">${CATS[i].label} +${d.toFixed(1)}</span>`).join("");
+      const dn = pills.filter(([, d]) => d < 0).map(([i, d]) => `<span class="pill dn">${CATS[i].label} ${d.toFixed(1)}</span>`).join("");
+      const them = r.theirGain >= 0.02 ? `<span class="them yes">Helps them too</span>` : `<span class="them meh">About even for them</span>`;
+      return `<tr>
+        <td class="gain">+${r.gain.toFixed(2)}<small>cats / week</small></td>
+        <td>${esc(r.team)}</td>
+        <td>${r.get.map(player).join("")}</td>
+        <td>${r.give.map(player).join("")}</td>
+        <td>${up}${dn}</td>
+        <td>${them}</td>
+      </tr>`;
+    }).join("") : `<tr><td colspan="6" class="empty">No trades found with these settings. Try unlocking a player, allowing 2-for-2 trades, letting weak categories get worse, or showing all fair trades.</td></tr>`;
+  }
+
+  function renderInfo() {
+    const when = DATA.updated ? new Date(DATA.updated).toLocaleString(undefined, { day: "numeric", month: "short", hour: "numeric", minute: "2-digit" }) : "";
+    $("info").innerHTML = `<span>ESPN sync ${esc(when)}</span><button type="button" class="btn" id="theme"></button>`;
+    const root = document.documentElement;
+    const label = () => { $("theme").textContent = root.dataset.theme === "light" ? "Dark mode" : "Light mode"; };
+    label();
+    $("theme").onclick = () => { root.dataset.theme = root.dataset.theme === "light" ? "dark" : "light"; try { localStorage.setItem("lcb:theme", root.dataset.theme); } catch (e) { /* storage unavailable */ } label(); };
+  }
+
+  // ---------- controls ----------
+  $("team").innerHTML += LEAGUE.teams.map((t) => `<option>${esc(t.name)}</option>`).join("");
+  for (const id of ["size", "fair", "weak", "team", "src"]) $(id).addEventListener("change", (e) => {
+    state[id] = id === "size" ? +e.target.value : e.target.value;
+    if (id === "src") { Z = zScores(); renderKeep(); }
+    search();
+  });
+  $("go").addEventListener("click", search);
+  $("cats").addEventListener("click", (e) => {
+    const b = e.target.closest("[data-cat]"); if (!b) return;
+    const k = b.dataset.cat;
+    if (state.off.has(k)) state.off.delete(k); else if (state.off.size < CATS.length - 1) state.off.add(k);
+    store.set("off", [...state.off]);
+    search();
+  });
+  $("keep").addEventListener("click", (e) => {
+    const b = e.target.closest("[data-name]"); if (!b || b.disabled) return;
+    const n = b.dataset.name;
+    if (state.keep.has(n)) state.keep.delete(n); else state.keep.add(n);
+    store.set("keep", [...state.keep]);
+    b.setAttribute("aria-pressed", state.keep.has(n));
+    search();
+  });
+
+  renderInfo();
+  Z = zScores();
+  renderKeep();
+  search();
+})();
+</script>
