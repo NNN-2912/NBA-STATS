@@ -18,6 +18,8 @@ Your starred and taken players are saved in your browser.
 
 In the **League** panel you can pick any team and see a head-to-head matchup preview against yours.
 
+**Trade Finder (`trades.html`).** Searches every 1-for-1 and 2-for-2 trade with every team and ranks them by how many more categories a week they should win you, using the latest hourly rosters and stats (a mix of this season's games and ESPN's projections). It only shows trades that are fair to the other manager, and by default never makes your weak categories worse. You can lock players you won't trade, punt categories, or limit the search to one team.
+
 ## Where the data comes from
 
 `scripts/fetch-espn.mjs` downloads ESPN Fantasy's own player projections and season stats.
